@@ -116,7 +116,7 @@ class CloudSyncService {
   }
 
   static const _kBridgeUrlKey = 'mongo_bridge_url';
-  static const String cloudBridgeUrl = 'https://jg-company-sync.onrender.com';
+  static const String cloudBridgeUrl = 'https://jg-company.onrender.com';
   static const String localBridgeUrl = 'http://localhost:8089';
 
   static Future<String> getBridgeUrl() async {
