@@ -8,6 +8,7 @@ import '../screens/services_screen.dart';
 import '../screens/moto_screen.dart';
 import '../screens/security_screen.dart';
 import '../screens/clients_screen.dart';
+import '../screens/providers_screen.dart';
 
 /// ============================================================================
 /// [VISTA / SHELL] HomeShellScreen
@@ -88,6 +89,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         onOpenMoto: () => _navigateTo(2),
         onOpenSecurity: () => _navigateTo(3),
         onOpenClients: () => _navigateTo(4),
+        onOpenProviders: () => _navigateTo(5),
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       ServicesScreen(
@@ -102,6 +104,10 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       ClientsScreen(
+        streamingController: widget.streamingController,
+        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
+      ProvidersScreen(
         streamingController: widget.streamingController,
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
@@ -124,6 +130,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
       _DrawerItem(0, Icons.home_rounded, 'Inicio / Dashboard'),
       _DrawerItem(1, Icons.tv_rounded, 'Pantallas & Streaming'),
       _DrawerItem(4, Icons.people_rounded, 'Clientes'),
+      _DrawerItem(5, Icons.storefront_rounded, 'Proveedores & Soporte'),
       _DrawerItem(2, Icons.two_wheeler_rounded, 'Control Moto & Aceite'),
       _DrawerItem(3, Icons.shield_rounded, 'Seguridad & Face ID'),
     ];

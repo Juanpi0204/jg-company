@@ -4,7 +4,9 @@ import '../../models/streaming_account_model.dart';
 import '../../controllers/streaming_controller.dart';
 import '../../models/app_settings.dart';
 import '../../models/client_model.dart';
+import '../../models/provider_model.dart';
 import '../screens/clients_screen.dart';
+import '../screens/providers_screen.dart';
 import '../theme/app_theme.dart';
 import 'smart_paste_dialog.dart';
 
@@ -59,13 +61,6 @@ class _AccountFormModalState extends State<AccountFormModal> {
     'MAX PA',
     'SPOTIFY FAMILIAR',
     'CRUNCHYROLL',
-  ];
-
-  final List<String> _proveedoresSugeridos = [
-    'DIGITAL HOUSE',
-    'S.G.R STREAMING',
-    'PUNTACANA',
-    'DISPONIBLES ALI',
   ];
 
   @override
@@ -131,6 +126,15 @@ class _AccountFormModalState extends State<AccountFormModal> {
         if (cliente.telefono.isNotEmpty) {
           _telefonoCtrl.text = cliente.telefono;
         }
+      });
+    }
+  }
+
+  Future<void> _seleccionarProveedor() async {
+    final proveedor = await ProviderSelectorDialog.mostrar(context);
+    if (proveedor != null && mounted) {
+      setState(() {
+        _proveedorCtrl.text = proveedor.nombre;
       });
     }
   }
@@ -329,6 +333,27 @@ class _AccountFormModalState extends State<AccountFormModal> {
                 Row(
                   children: [
                     Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: _seleccionarProveedor,
+                        icon: const Icon(Icons.storefront_rounded, color: AppTheme.purpleAccent, size: 16),
+                        label: const Text(
+                          'Seleccionar de Proveedores',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: BorderSide(color: AppTheme.purpleAccent.withOpacity(0.5)),
+                          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
                       child: _buildDropdownOrField(
                         controller: _servicioCtrl,
                         label: 'Servicio',
@@ -339,11 +364,15 @@ class _AccountFormModalState extends State<AccountFormModal> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _buildDropdownOrField(
+                      child: _buildTextField(
                         controller: _proveedorCtrl,
                         label: 'Proveedor',
-                        items: _proveedoresSugeridos,
                         icon: Icons.business,
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.contacts_rounded, color: AppTheme.purpleAccent, size: 18),
+                          tooltip: 'Buscar proveedor guardado',
+                          onPressed: _seleccionarProveedor,
+                        ),
                       ),
                     ),
                   ],
@@ -571,6 +600,18 @@ class _AccountFormModalState extends State<AccountFormModal> {
         final existe = todos.any((c) => c.nombre.toUpperCase() == clienteNombre);
         if (!existe) {
           await ClientsService.add(clienteNombre, clienteTelefono);
+        }
+      } catch (_) {}
+    }
+
+    // Si el proveedor no existe en el directorio, guardarlo automáticamente
+    final provNombre = _proveedorCtrl.text.trim().toUpperCase();
+    if (provNombre.isNotEmpty) {
+      try {
+        final provs = await ProvidersService.getAll();
+        final existe = provs.any((p) => p.nombre.toUpperCase() == provNombre);
+        if (!existe) {
+          await ProvidersService.add(provNombre, '');
         }
       } catch (_) {}
     }

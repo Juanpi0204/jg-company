@@ -288,9 +288,14 @@ Ya puedes ingresar con esta nueva clave. ¡Disfruta tu contenido! 🍿🎬
     final cleanPhone = telefono.replaceAll(RegExp(r'[^0-9]'), '');
     final encodedMessage = Uri.encodeComponent(message);
 
+    String targetPhone = cleanPhone;
+    if (targetPhone.length == 10 && targetPhone.startsWith('3')) {
+      targetPhone = '57$targetPhone';
+    }
+
     Uri url;
-    if (cleanPhone.isNotEmpty) {
-      url = Uri.parse('https://wa.me/$cleanPhone?text=$encodedMessage');
+    if (targetPhone.isNotEmpty) {
+      url = Uri.parse('https://wa.me/$targetPhone?text=$encodedMessage');
     } else {
       url = Uri.parse('https://api.whatsapp.com/send?text=$encodedMessage');
     }

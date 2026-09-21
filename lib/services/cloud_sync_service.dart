@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/streaming_account_model.dart';
 import '../models/client_model.dart';
+import '../models/provider_model.dart';
 import '../models/storage_service.dart';
 
 /// Estado de la sincronización en la nube
@@ -201,13 +202,14 @@ class CloudSyncService {
   static void triggerAutoSync({
     required List<StreamingAccountModel> accounts,
     List<ClientModel>? clients,
+    List<ProviderModel>? providers,
   }) {
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 2000), () async {
       final auto = await isAutoSyncEnabled();
       final configured = await isConfigured();
       if (auto && configured) {
-        await syncToCloud(accounts: accounts, clients: clients);
+        await syncToCloud(accounts: accounts, clients: clients, providers: providers);
       }
     });
   }
@@ -217,12 +219,14 @@ class CloudSyncService {
   static Future<bool> syncToCloud({
     required List<StreamingAccountModel> accounts,
     List<ClientModel>? clients,
+    List<ProviderModel>? providers,
   }) async {
     statusNotifier.value = SyncStatus.syncing;
     statusMessageNotifier.value = 'Sincronizando con MongoDB Atlas...';
 
     try {
       final listaClientes = clients ?? await ClientsService.getAll();
+      final listaProveedores = providers ?? await ProvidersService.getAll();
 
       // 1. Intentar primero con el Mongo Sync Bridge (Cloud o Local)
       try {
@@ -230,6 +234,7 @@ class CloudSyncService {
         final payload = jsonEncode({
           'accounts': accounts.map((a) => a.toMap()).toList(),
           'clients': listaClientes.map((c) => c.toMap()).toList(),
+          'providers': listaProveedores.map((p) => p.toMap()).toList(),
         });
 
         var bridgeResp = await http.post(
@@ -378,6 +383,7 @@ class CloudSyncService {
           final data = jsonDecode(bridgeResp.body) as Map<String, dynamic>;
           final List docsP = data['accounts'] ?? [];
           final List docsC = data['clients'] ?? [];
+          final List docsPR = data['providers'] ?? [];
 
           final cuentas = docsP.map((d) {
             final map = Map<String, dynamic>.from(d);
@@ -390,6 +396,15 @@ class CloudSyncService {
             if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
             return ClientModel.fromMap(map);
           }).toList();
+
+          if (docsPR.isNotEmpty) {
+            final proveedores = docsPR.map((d) {
+              final map = Map<String, dynamic>.from(d);
+              if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
+              return ProviderModel.fromMap(map);
+            }).toList();
+            await ProvidersService.save(proveedores);
+          }
 
           await ClientsService.save(clientes);
           await StorageService.saveAccounts(cuentas);

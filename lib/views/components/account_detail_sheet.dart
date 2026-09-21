@@ -4,6 +4,7 @@ import '../../models/streaming_account_model.dart';
 import '../../controllers/streaming_controller.dart';
 import '../theme/app_theme.dart';
 import 'smart_paste_dialog.dart';
+import 'report_issue_dialog.dart';
 
 /// ============================================================================
 /// [WIDGET / VISTA] AccountDetailSheet
@@ -252,24 +253,55 @@ class _AccountDetailSheetState extends State<AccountDetailSheet> {
                       ],
                     ),
 
-                    // Si está por vencer o vencida, mostrar botón de Recordatorio
-                    if (widget.account.esPorVencer || widget.account.esVencida) ...[
-                      const SizedBox(height: 8),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton.icon(
-                          onPressed: () => widget.controller.sendRenewalReminderWhatsApp(widget.account),
-                          icon: const Icon(Icons.notifications_active_rounded, size: 16),
-                          label: const Text('ENVIAR RECORDATORIO DE VENCIMIENTO WA'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.warningAmber,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 11),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    // Botón Reportar Falla a Soporte del Proveedor
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          ReportIssueDialog.mostrar(context, widget.account);
+                        },
+                        icon: const Icon(Icons.report_problem_rounded, size: 17, color: Colors.white),
+                        label: const Text('REPORTAR FALLA A SOPORTE (PROVEEDOR) 🚨'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFB81D24),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
+
+                    // Botón de Recordatorio de Vencimiento vía WhatsApp
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => widget.controller.sendRenewalReminderWhatsApp(widget.account),
+                        icon: const Icon(Icons.notifications_active_rounded, size: 16),
+                        label: Text(
+                          widget.account.esPorVencer || widget.account.esVencida
+                              ? '⚠️ ENVIAR RECORDATORIO DE VENCIMIENTO WA'
+                              : '🔔 AVISAR VENCIMIENTO POR WHATSAPP',
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: widget.account.esPorVencer || widget.account.esVencida
+                              ? AppTheme.warningAmber
+                              : AppTheme.cardElevated,
+                          foregroundColor: widget.account.esPorVencer || widget.account.esVencida
+                              ? Colors.black
+                              : AppTheme.warningAmber,
+                          padding: const EdgeInsets.symmetric(vertical: 11),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: AppTheme.warningAmber.withOpacity(0.6),
+                              width: 1,
+                            ),
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
               ),

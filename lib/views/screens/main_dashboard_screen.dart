@@ -16,6 +16,7 @@ class MainDashboardScreen extends StatelessWidget {
   final VoidCallback onOpenMoto;
   final VoidCallback onOpenSecurity;
   final VoidCallback onOpenClients;
+  final VoidCallback? onOpenProviders;
   final VoidCallback onOpenDrawer;
 
   const MainDashboardScreen({
@@ -25,6 +26,7 @@ class MainDashboardScreen extends StatelessWidget {
     required this.onOpenMoto,
     required this.onOpenSecurity,
     required this.onOpenClients,
+    this.onOpenProviders,
     required this.onOpenDrawer,
   }) : super(key: key);
 
@@ -139,11 +141,10 @@ class MainDashboardScreen extends StatelessWidget {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _QuickChip(
-                              icon: Icons.account_balance_wallet_rounded,
-                              label: 'Deudas',
-                              sublabel: 'Préstamos',
-                              onTap: () {},
-                              isComingSoon: true,
+                              icon: Icons.storefront_rounded,
+                              label: 'Proveedores',
+                              sublabel: 'Soporte WA',
+                              onTap: onOpenProviders ?? () {},
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -211,9 +212,11 @@ class MainDashboardScreen extends StatelessWidget {
                             .where((a) => a.esPorVencer)
                             .toList()
                           ..sort((a, b) => a.diasRestantes.compareTo(b.diasRestantes));
-                        if (index >= lista.length) return null;
                         final acc = lista[index];
-                        return _VencimientoRow(acc: acc);
+                        return _VencimientoRow(
+                          acc: acc,
+                          onSendReminder: () => streamingController.sendRenewalReminderWhatsApp(acc),
+                        );
                       },
                       childCount: accounts.where((a) => a.esPorVencer).length,
                     ),
@@ -844,8 +847,9 @@ class _RentabilidadSection extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _VencimientoRow extends StatelessWidget {
   final StreamingAccountModel acc;
+  final VoidCallback onSendReminder;
 
-  const _VencimientoRow({required this.acc});
+  const _VencimientoRow({required this.acc, required this.onSendReminder});
 
   @override
   Widget build(BuildContext context) {
@@ -891,7 +895,7 @@ class _VencimientoRow extends StatelessWidget {
             ),
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: AppTheme.warningAmber.withOpacity(0.12),
               borderRadius: BorderRadius.circular(8),
@@ -902,6 +906,37 @@ class _VencimientoRow extends StatelessWidget {
                 color: AppTheme.warningAmber,
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onSendReminder,
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF25D366).withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFF25D366).withOpacity(0.4)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.notifications_active_rounded, color: Color(0xFF25D366), size: 12),
+                    SizedBox(width: 4),
+                    Text(
+                      'Avisar',
+                      style: TextStyle(
+                        color: Color(0xFF25D366),
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

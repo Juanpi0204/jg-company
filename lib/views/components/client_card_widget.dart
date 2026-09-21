@@ -22,6 +22,7 @@ class ClientCardWidget extends StatelessWidget {
   final VoidCallback onWhatsAppTap;
   final VoidCallback onTogglePayment;
   final VoidCallback? onRenewalReminderTap;
+  final VoidCallback? onReportIssueTap;
 
   const ClientCardWidget({
     Key? key,
@@ -30,6 +31,7 @@ class ClientCardWidget extends StatelessWidget {
     required this.onWhatsAppTap,
     required this.onTogglePayment,
     this.onRenewalReminderTap,
+    this.onReportIssueTap,
   }) : super(key: key);
 
   @override
@@ -354,39 +356,81 @@ class ClientCardWidget extends StatelessWidget {
                       ],
                     ),
 
-                    // Botón directo para enviar credenciales por WhatsApp
-                    Material(
-                      color: Colors.transparent,
-                      child: InkWell(
-                        onTap: onWhatsAppTap,
-                        borderRadius: BorderRadius.circular(10),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF25D366).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFF25D366).withOpacity(0.4),
-                              width: 1,
-                            ),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.send_rounded, color: Color(0xFF25D366), size: 14),
-                              SizedBox(width: 4),
-                              Text(
-                                'Enviar',
-                                style: TextStyle(
-                                  color: Color(0xFF25D366),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (onReportIssueTap != null) ...[
+                          Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: onReportIssueTap,
+                              borderRadius: BorderRadius.circular(10),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: AppTheme.netflixRed.withOpacity(0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: AppTheme.netflixRed.withOpacity(0.35),
+                                    width: 1,
+                                  ),
+                                ),
+                                child: const Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.report_problem_rounded, color: AppTheme.netflixRed, size: 13),
+                                    SizedBox(width: 4),
+                                    Text(
+                                      'Falla',
+                                      style: TextStyle(
+                                        color: AppTheme.netflixRed,
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ),
-                            ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+
+                        // Botón directo para enviar credenciales por WhatsApp
+                        Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: onWhatsAppTap,
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF25D366).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: const Color(0xFF25D366).withOpacity(0.4),
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.send_rounded, color: Color(0xFF25D366), size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Enviar',
+                                    style: TextStyle(
+                                      color: Color(0xFF25D366),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),

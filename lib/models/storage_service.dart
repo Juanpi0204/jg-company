@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'streaming_account_model.dart';
-import 'mock_data.dart';
 
 /// ============================================================================
 /// [MODELO / SERVICIO] StorageService

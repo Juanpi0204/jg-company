@@ -42,9 +42,9 @@ app.get('/status', async (req, res) => {
 app.post('/sync', async (req, res) => {
   try {
     const database = await getDb();
-    const { accounts = [], clients = [] } = req.body;
+    const { accounts = [], clients = [], providers = [] } = req.body;
 
-    console.log(`📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes`);
+    console.log(`📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes, ${providers.length} proveedores`);
 
     // 1. Sincronizar Pantallas
     const colPantallas = database.collection('pantallas');
@@ -80,6 +80,23 @@ app.post('/sync', async (req, res) => {
       await colClientes.deleteMany({});
     }
 
+    // 3. Sincronizar Proveedores
+    const colProveedores = database.collection('proveedores');
+    const providerIds = providers.map(p => String(p.id)).filter(Boolean);
+
+    if (providerIds.length > 0) {
+      await colProveedores.deleteMany({ id: { $nin: providerIds } });
+      for (const pr of providers) {
+        if (pr.id) {
+          const doc = { ...pr };
+          delete doc._id;
+          await colProveedores.replaceOne({ id: String(pr.id) }, doc, { upsert: true });
+        }
+      }
+    } else if (providers.length === 0 && req.body.providers !== undefined) {
+      await colProveedores.deleteMany({});
+    }
+
     console.log(`✅ [SYNC EXITOSO] MongoDB Atlas actualizado.`);
 
     res.json({
@@ -87,6 +104,7 @@ app.post('/sync', async (req, res) => {
       message: 'Sincronización exitosa con MongoDB Atlas',
       syncedAccounts: accounts.length,
       syncedClients: clients.length,
+      syncedProviders: providers.length,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -101,17 +119,21 @@ app.get('/pull', async (req, res) => {
     const database = await getDb();
     const colPantallas = database.collection('pantallas');
     const colClientes = database.collection('clientes');
+    const colProveedores = database.collection('proveedores');
 
     const accounts = await colPantallas.find().toArray();
     const clients = await colClientes.find().toArray();
+    const providers = await colProveedores.find().toArray();
 
     accounts.forEach(a => delete a._id);
     clients.forEach(c => delete c._id);
+    providers.forEach(p => delete p._id);
 
     res.json({
       ok: true,
       accounts,
-      clients
+      clients,
+      providers
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

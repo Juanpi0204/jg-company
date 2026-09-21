@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
-import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:mongo_dart/mongo_dart.dart';
 
 class MongoSyncBridge {

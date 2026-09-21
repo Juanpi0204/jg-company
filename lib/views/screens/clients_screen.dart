@@ -198,7 +198,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
                           padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
                           physics: const BouncingScrollPhysics(),
                           itemCount: filtrados.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 8),
+                          separatorBuilder: (_, _) => const SizedBox(height: 8),
                           itemBuilder: (_, i) => _ClienteTile(
                             cliente: filtrados[i],
                             onEditar: () => _mostrarFormulario(cliente: filtrados[i]),
@@ -290,7 +290,13 @@ class _ClienteTile extends StatelessWidget {
                   },
                 ),
               IconButton(
+                icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.textSecondary),
+                tooltip: 'Editar cliente',
+                onPressed: onEditar,
+              ),
+              IconButton(
                 icon: const Icon(Icons.delete_outline_rounded, size: 18, color: AppTheme.netflixRed),
+                tooltip: 'Eliminar cliente',
                 onPressed: onEliminar,
               ),
             ],
@@ -546,7 +552,7 @@ class _ClientSelectorDialogState extends State<ClientSelectorDialog> {
                           controller: ctrl,
                           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
                           itemCount: filtrados.length,
-                          separatorBuilder: (_, __) => const SizedBox(height: 6),
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
                           itemBuilder: (_, i) {
                             final c = filtrados[i];
                             final initials = c.nombre.isNotEmpty
