@@ -1,12 +1,12 @@
 services:
   - type: web
     name: jg-company-sync
-    runtime: dart
+    runtime: node
     plan: free
     region: oregon
     rootDir: sync_server
-    buildCommand: dart pub get
-    startCommand: dart run server.dart
+    buildCommand: npm install
+    startCommand: node index.js
     envVars:
       - key: PORT
         value: 10000
