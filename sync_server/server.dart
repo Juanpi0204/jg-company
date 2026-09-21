@@ -192,9 +192,10 @@ class MongoSyncBridge {
 
 void main() async {
   final bridge = MongoSyncBridge();
-  final server = await shelf_io.serve(bridge.handler, InternetAddress.anyIPv4, MongoSyncBridge.port);
+  final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? MongoSyncBridge.port;
+  final server = await shelf_io.serve(bridge.handler, InternetAddress.anyIPv4, port);
   print('====================================================');
-  print('🚀 MONGO SYNC BRIDGE ACTIVO en http://localhost:${server.port}');
+  print('🚀 MONGO SYNC BRIDGE ACTIVO en puerto ${server.port}');
   print('Conectado a cluster: cluster0.b4inhbz.mongodb.net/jg_company');
   print('====================================================');
 }

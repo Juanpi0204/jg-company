@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: jg-company-sync
+    runtime: dart
+    plan: free
+    region: oregon
+    rootDir: sync_server
+    buildCommand: dart pub get
+    startCommand: dart run server.dart
+    envVars:
+      - key: PORT
+        value: 10000

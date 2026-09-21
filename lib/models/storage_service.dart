@@ -22,10 +22,7 @@ class StorageService {
       final String? jsonString = prefs.getString(_accountsKey);
 
       if (jsonString == null || jsonString.isEmpty) {
-        // Primera ejecución: precargar datos del Excel y guardar
-        final initial = MockData.initialAccounts;
-        await saveAccounts(initial);
-        return initial;
+        return [];
       }
 
       final List<dynamic> decodedList = json.decode(jsonString);
@@ -34,7 +31,7 @@ class StorageService {
           .toList();
     } catch (e) {
       print('Error al cargar cuentas de almacenamiento local: $e');
-      return MockData.initialAccounts;
+      return [];
     }
   }
 

@@ -39,6 +39,13 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
 
     // Auto-sync reactivo cuando se agrega o edita una pantalla
     widget.streamingController.addListener(_onStreamingChanged);
+
+    // Cargar automáticamente datos de MongoDB Atlas al abrir la app
+    CloudSyncService.downloadFromCloud().then((data) {
+      if (data != null && mounted) {
+        widget.streamingController.init();
+      }
+    });
   }
 
   void _onStreamingChanged() {

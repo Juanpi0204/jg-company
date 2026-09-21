@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/streaming_account_model.dart';
 import '../models/client_model.dart';
+import '../models/storage_service.dart';
 
 /// Estado de la sincronización en la nube
 enum SyncStatus {
@@ -114,7 +115,27 @@ class CloudSyncService {
     await p.setString(_kDatabase, database.trim().isEmpty ? 'jg_company' : database.trim());
   }
 
-  static const String _bridgeUrl = 'http://localhost:8089';
+  static const _kBridgeUrlKey = 'mongo_bridge_url';
+  static const String cloudBridgeUrl = 'https://jg-company-sync.onrender.com';
+  static const String localBridgeUrl = 'http://localhost:8089';
+
+  static Future<String> getBridgeUrl() async {
+    final p = await SharedPreferences.getInstance();
+    final saved = p.getString(_kBridgeUrlKey);
+    if (saved != null && saved.trim().isNotEmpty) return saved.trim();
+    if (kIsWeb) {
+      final host = Uri.base.host;
+      if (host != 'localhost' && host != '127.0.0.1') {
+        return cloudBridgeUrl;
+      }
+    }
+    return localBridgeUrl;
+  }
+
+  static Future<void> setBridgeUrl(String url) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(_kBridgeUrlKey, url.trim());
+  }
 
   // ── Probar Conexión con Atlas ─────────────────────────────────────────────
 
@@ -125,9 +146,18 @@ class CloudSyncService {
     String? testCluster,
     String? testDatabase,
   }) async {
-    // 1. Probar primero el Bridge local de MongoDB
+    // 1. Probar primero el Bridge de MongoDB (Cloud o Local)
     try {
-      final resp = await http.get(Uri.parse('$_bridgeUrl/status')).timeout(const Duration(seconds: 4));
+      final bUrl = await getBridgeUrl();
+      final resp = await http.get(Uri.parse('$bUrl/status')).timeout(const Duration(seconds: 5));
+      if (resp.statusCode == 200) {
+        return true;
+      }
+    } catch (_) {}
+
+    // Fallback: Probar local si estamos en web local
+    try {
+      final resp = await http.get(Uri.parse('$localBridgeUrl/status')).timeout(const Duration(seconds: 3));
       if (resp.statusCode == 200) {
         return true;
       }
@@ -194,18 +224,30 @@ class CloudSyncService {
     try {
       final listaClientes = clients ?? await ClientsService.getAll();
 
-      // 1. Intentar primero con el Mongo Sync Bridge (Directo a tu Cluster Atlas)
+      // 1. Intentar primero con el Mongo Sync Bridge (Cloud o Local)
       try {
+        final bUrl = await getBridgeUrl();
         final payload = jsonEncode({
           'accounts': accounts.map((a) => a.toMap()).toList(),
           'clients': listaClientes.map((c) => c.toMap()).toList(),
         });
 
-        final bridgeResp = await http.post(
-          Uri.parse('$_bridgeUrl/sync'),
+        var bridgeResp = await http.post(
+          Uri.parse('$bUrl/sync'),
           headers: {'Content-Type': 'application/json'},
           body: payload,
         ).timeout(const Duration(seconds: 8));
+
+        // Fallback a localBridgeUrl si el cloud falló y estamos en PC
+        if (bridgeResp.statusCode != 200 && bUrl != localBridgeUrl) {
+          try {
+            bridgeResp = await http.post(
+              Uri.parse('$localBridgeUrl/sync'),
+              headers: {'Content-Type': 'application/json'},
+              body: payload,
+            ).timeout(const Duration(seconds: 4));
+          } catch (_) {}
+        }
 
         print('🌐 [SYNC] Respuesta del Bridge: ${bridgeResp.statusCode} - ${bridgeResp.body}');
 
@@ -220,7 +262,7 @@ class CloudSyncService {
           return true;
         }
       } catch (e) {
-        print('⚠️ [SYNC] Error conectando al bridge local: $e');
+        print('⚠️ [SYNC] Error conectando al bridge: $e');
       }
 
       // 2. Fallback: Data API si está configurada
@@ -323,9 +365,15 @@ class CloudSyncService {
     statusMessageNotifier.value = 'Descargando desde MongoDB Atlas...';
 
     try {
-      // 1. Intentar con Bridge
+      // 1. Intentar con Bridge (Cloud o Local)
       try {
-        final bridgeResp = await http.get(Uri.parse('$_bridgeUrl/pull')).timeout(const Duration(seconds: 8));
+        final bUrl = await getBridgeUrl();
+        var bridgeResp = await http.get(Uri.parse('$bUrl/pull')).timeout(const Duration(seconds: 8));
+        if (bridgeResp.statusCode != 200 && bUrl != localBridgeUrl) {
+          try {
+            bridgeResp = await http.get(Uri.parse('$localBridgeUrl/pull')).timeout(const Duration(seconds: 4));
+          } catch (_) {}
+        }
         if (bridgeResp.statusCode == 200) {
           final data = jsonDecode(bridgeResp.body) as Map<String, dynamic>;
           final List docsP = data['accounts'] ?? [];
@@ -344,6 +392,7 @@ class CloudSyncService {
           }).toList();
 
           await ClientsService.save(clientes);
+          await StorageService.saveAccounts(cuentas);
 
           final now = DateTime.now();
           final p = await SharedPreferences.getInstance();
@@ -421,6 +470,7 @@ class CloudSyncService {
       }).toList();
 
       await ClientsService.save(clientes);
+      await StorageService.saveAccounts(cuentas);
 
       final now = DateTime.now();
       final p = await SharedPreferences.getInstance();
