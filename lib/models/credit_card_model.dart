@@ -300,6 +300,62 @@ class CreditCardsService {
     await save(tarjetas);
   }
 
+  static const _kDescKey = 'tarjetas_descripciones_sugeridas_v1';
+
+  static const List<String> defaultSugerencias = [
+    'Netflix',
+    'Disney+',
+    'Prime Video',
+    'Max',
+    'Spotify',
+    'Paramount+',
+    'Crunchyroll',
+    'Hosting / Dominio',
+    'Combos',
+  ];
+
+  static Future<List<String>> getDescripcionesSugeridas() async {
+    final p = await SharedPreferences.getInstance();
+    final guardadas = p.getStringList(_kDescKey);
+    final resultado = <String>{};
+
+    if (guardadas != null && guardadas.isNotEmpty) {
+      resultado.addAll(guardadas);
+    }
+
+    // Agregar también cualquier descripción de movimientos existentes
+    final tarjetas = await getAll();
+    for (final t in tarjetas) {
+      for (final m in t.movimientos) {
+        if (m.descripcion.trim().isNotEmpty) {
+          resultado.add(m.descripcion.trim());
+        }
+      }
+    }
+
+    // Si aún no hay suficientes, agregar predeterminadas
+    for (final def in defaultSugerencias) {
+      resultado.add(def);
+    }
+
+    return resultado.toList();
+  }
+
+  static Future<void> guardarDescripcionSugerida(String desc) async {
+    final clean = desc.trim();
+    if (clean.isEmpty) return;
+    final actuales = await getDescripcionesSugeridas();
+    final nuevaLista = [
+      clean,
+      ...actuales.where((d) => d.toLowerCase() != clean.toLowerCase())
+    ];
+    if (nuevaLista.length > 30) {
+      nuevaLista.removeRange(30, nuevaLista.length);
+    }
+    final p = await SharedPreferences.getInstance();
+    await p.setStringList(_kDescKey, nuevaLista);
+  }
+
   static Future<void> addMovimiento(
     String tarjetaId,
     String descripcion,
@@ -308,15 +364,17 @@ class CreditCardsService {
     final tarjetas = await getAll();
     final idx = tarjetas.indexWhere((t) => t.id == tarjetaId);
     if (idx == -1) return;
+    final cleanDesc = descripcion.trim();
     final movimiento = CreditCardMovement(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
-      descripcion: descripcion.trim(),
+      descripcion: cleanDesc,
       monto: monto,
       fecha: DateTime.now(),
     );
     final movimientos = [...tarjetas[idx].movimientos, movimiento];
     tarjetas[idx] = tarjetas[idx].copyWith(movimientos: movimientos);
     await save(tarjetas);
+    await guardarDescripcionSugerida(cleanDesc);
   }
 
   static Future<void> toggleBolsillo(

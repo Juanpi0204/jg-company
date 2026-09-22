@@ -311,7 +311,6 @@ class _CreditCardsScreenState extends State<CreditCardsScreen> {
           _syncCloud();
         },
         onAgregarMovimiento: () {
-          Navigator.pop(context);
           _mostrarFormMovimiento(tarjeta);
         },
       ),
@@ -642,7 +641,7 @@ class _TarjetaCard extends StatelessWidget {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
-                    value: tarjeta.totalSubidoBolsillo / tarjeta.totalComprado,
+                    value: (tarjeta.totalSubidoBolsillo / tarjeta.totalComprado).clamp(0.0, 1.0),
                     backgroundColor: Colors.white24,
                     valueColor:
                         const AlwaysStoppedAnimation<Color>(Color(0xFF69F0AE)),
@@ -651,7 +650,7 @@ class _TarjetaCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${((tarjeta.totalSubidoBolsillo / tarjeta.totalComprado) * 100).toStringAsFixed(0)}% subido al bolsillo',
+                  '${((tarjeta.totalSubidoBolsillo / tarjeta.totalComprado) * 100).clamp(0, 100).toStringAsFixed(0)}% subido al bolsillo',
                   style: const TextStyle(color: Colors.white60, fontSize: 10),
                 ),
               ],
@@ -982,6 +981,20 @@ class _NuevoMovimientoSheetState extends State<_NuevoMovimientoSheet> {
   final _descCtrl = TextEditingController();
   final _montoCtrl = TextEditingController();
   bool _guardando = false;
+  List<String> _sugerencias = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _cargarSugerencias();
+  }
+
+  Future<void> _cargarSugerencias() async {
+    final list = await CreditCardsService.getDescripcionesSugeridas();
+    if (mounted) {
+      setState(() => _sugerencias = list);
+    }
+  }
 
   @override
   void dispose() {
@@ -990,13 +1003,36 @@ class _NuevoMovimientoSheetState extends State<_NuevoMovimientoSheet> {
     super.dispose();
   }
 
+  List<String> get _sugerenciasFiltradas {
+    final query = _descCtrl.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return _sugerencias.take(10).toList();
+    }
+    final matches = _sugerencias
+        .where((s) => s.toLowerCase().contains(query))
+        .toList();
+    return matches.take(10).toList();
+  }
+
   Future<void> _guardar() async {
     if (_descCtrl.text.trim().isEmpty || _montoCtrl.text.trim().isEmpty) return;
     final monto = double.tryParse(_montoCtrl.text.replaceAll('.', '').replaceAll(',', ''));
     if (monto == null || monto <= 0) return;
     setState(() => _guardando = true);
-    await widget.onGuardar(_descCtrl.text, monto);
-    if (mounted) Navigator.pop(context);
+    try {
+      await widget.onGuardar(_descCtrl.text.trim(), monto);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _guardando = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al registrar compra: $e'),
+            backgroundColor: AppTheme.netflixRed,
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -1038,9 +1074,83 @@ class _NuevoMovimientoSheetState extends State<_NuevoMovimientoSheet> {
             ),
             const SizedBox(height: 20),
             // Campo descripción
-            _campo(_descCtrl, 'Descripción de la compra', Icons.shopping_bag_rounded,
-                TextInputType.text),
-            const SizedBox(height: 12),
+            _campo(
+              _descCtrl,
+              'Descripción de la compra',
+              Icons.shopping_bag_rounded,
+              TextInputType.text,
+              onChanged: (_) => setState(() {}),
+            ),
+            // Sugerencias de descripciones guardadas
+            if (_sugerenciasFiltradas.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                height: 36,
+                child: ListView.separated(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _sugerenciasFiltradas.length,
+                  separatorBuilder: (_, _) => const SizedBox(width: 8),
+                  itemBuilder: (_, i) {
+                    final sug = _sugerenciasFiltradas[i];
+                    final isSelected =
+                        _descCtrl.text.trim().toLowerCase() == sug.toLowerCase();
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _descCtrl.text = sug;
+                          _descCtrl.selection = TextSelection.fromPosition(
+                            TextPosition(offset: sug.length),
+                          );
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? widget.tarjeta.color.withOpacity(0.25)
+                              : AppTheme.cardBg,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isSelected
+                                ? widget.tarjeta.color
+                                : AppTheme.borderSubtle,
+                            width: isSelected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.history_rounded,
+                              size: 13,
+                              color: isSelected
+                                  ? widget.tarjeta.color
+                                  : AppTheme.textMuted,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              sug,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : AppTheme.textSecondary,
+                                fontSize: 12,
+                                fontWeight: isSelected
+                                    ? FontWeight.bold
+                                    : FontWeight.normal,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+            const SizedBox(height: 14),
             // Campo monto
             _campo(_montoCtrl, 'Monto (\$)', Icons.attach_money_rounded,
                 TextInputType.number,
@@ -1052,7 +1162,7 @@ class _NuevoMovimientoSheetState extends State<_NuevoMovimientoSheet> {
               child: ElevatedButton(
                 onPressed: _guardando ? null : _guardar,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1A73E8),
+                  backgroundColor: widget.tarjeta.color,
                   foregroundColor: Colors.white,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
@@ -1070,13 +1180,20 @@ class _NuevoMovimientoSheetState extends State<_NuevoMovimientoSheet> {
     );
   }
 
-  Widget _campo(TextEditingController ctrl, String label, IconData icon,
-      TextInputType type, {List<TextInputFormatter>? inputFormatters}) {
+  Widget _campo(
+    TextEditingController ctrl,
+    String label,
+    IconData icon,
+    TextInputType type, {
+    List<TextInputFormatter>? inputFormatters,
+    ValueChanged<String>? onChanged,
+  }) {
     return TextField(
       controller: ctrl,
       keyboardType: type,
       textCapitalization: type == TextInputType.text ? TextCapitalization.sentences : TextCapitalization.none,
       inputFormatters: inputFormatters,
+      onChanged: onChanged,
       style: const TextStyle(color: AppTheme.textPrimary, fontSize: 15),
       decoration: InputDecoration(
         labelText: label,
@@ -1092,7 +1209,7 @@ class _NuevoMovimientoSheetState extends State<_NuevoMovimientoSheet> {
             borderSide: BorderSide(color: AppTheme.borderSubtle)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: Color(0xFF1A73E8), width: 1.5)),
+            borderSide: BorderSide(color: widget.tarjeta.color, width: 1.5)),
       ),
     );
   }
@@ -1591,7 +1708,8 @@ class _EditarCicloSheetState extends State<_EditarCicloSheet> {
   }
 
   String _formatDia(DateTime d) {
-    return DateFormat('dd MMM', 'es').format(d);
+    const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+    return '${d.day} ${meses[d.month - 1]}';
   }
 }
 
