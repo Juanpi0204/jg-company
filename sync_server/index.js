@@ -42,9 +42,32 @@ app.get('/status', async (req, res) => {
 app.post('/sync', async (req, res) => {
   try {
     const database = await getDb();
-    const { accounts = [], clients = [], providers = [] } = req.body;
+    const {
+      accounts = [],
+      clients = [],
+      providers = [],
+      creditCards = [],
+      // forceEmpty: true solo si el usuario borró todos los datos intencionalmente
+      forceEmpty = false
+    } = req.body;
 
-    console.log(`📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes, ${providers.length} proveedores`);
+    console.log(`📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes, ${providers.length} proveedores, ${creditCards.length} tarjetas`);
+
+    // ── REGLA DE SEGURIDAD ANTI-BORRADO ─────────────────────────────────────
+    // Si todos los arrays están vacíos y forceEmpty no es true,
+    // es probable que sea un sync accidental desde dispositivo sin datos locales.
+    // En ese caso NO tocamos MongoDB.
+    const todosVacios = accounts.length === 0 && clients.length === 0 &&
+                        providers.length === 0 && creditCards.length === 0;
+    if (todosVacios && !forceEmpty) {
+      console.log('⚠️ [SYNC] Todos los arrays vacíos sin forceEmpty=true. Sync ignorado para proteger datos.');
+      return res.json({
+        ok: true,
+        message: 'Sync ignorado: arrays vacíos sin forceEmpty. Datos en MongoDB protegidos.',
+        protected: true,
+        timestamp: new Date().toISOString()
+      });
+    }
 
     // 1. Sincronizar Pantallas
     const colPantallas = database.collection('pantallas');
@@ -59,9 +82,11 @@ app.post('/sync', async (req, res) => {
           await colPantallas.replaceOne({ id: String(acc.id) }, doc, { upsert: true });
         }
       }
-    } else {
+    } else if (forceEmpty) {
+      // Solo borrar si el usuario explícitamente quiere borrar todo
       await colPantallas.deleteMany({});
     }
+    // Si accountIds.length === 0 y !forceEmpty, no tocamos la colección
 
     // 2. Sincronizar Clientes
     const colClientes = database.collection('clientes');
@@ -76,7 +101,7 @@ app.post('/sync', async (req, res) => {
           await colClientes.replaceOne({ id: String(cl.id) }, doc, { upsert: true });
         }
       }
-    } else {
+    } else if (forceEmpty) {
       await colClientes.deleteMany({});
     }
 
@@ -93,8 +118,25 @@ app.post('/sync', async (req, res) => {
           await colProveedores.replaceOne({ id: String(pr.id) }, doc, { upsert: true });
         }
       }
-    } else if (providers.length === 0 && req.body.providers !== undefined) {
+    } else if (forceEmpty) {
       await colProveedores.deleteMany({});
+    }
+
+    // 4. Sincronizar Tarjetas de Crédito
+    const colTarjetas = database.collection('tarjetas_credito');
+    const cardIds = creditCards.map(c => String(c.id)).filter(Boolean);
+
+    if (cardIds.length > 0) {
+      await colTarjetas.deleteMany({ id: { $nin: cardIds } });
+      for (const card of creditCards) {
+        if (card.id) {
+          const doc = { ...card };
+          delete doc._id;
+          await colTarjetas.replaceOne({ id: String(card.id) }, doc, { upsert: true });
+        }
+      }
+    } else if (forceEmpty) {
+      await colTarjetas.deleteMany({});
     }
 
     console.log(`✅ [SYNC EXITOSO] MongoDB Atlas actualizado.`);
@@ -105,6 +147,7 @@ app.post('/sync', async (req, res) => {
       syncedAccounts: accounts.length,
       syncedClients: clients.length,
       syncedProviders: providers.length,
+      syncedCreditCards: creditCards.length,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -120,20 +163,24 @@ app.get('/pull', async (req, res) => {
     const colPantallas = database.collection('pantallas');
     const colClientes = database.collection('clientes');
     const colProveedores = database.collection('proveedores');
+    const colTarjetas = database.collection('tarjetas_credito');
 
     const accounts = await colPantallas.find().toArray();
     const clients = await colClientes.find().toArray();
     const providers = await colProveedores.find().toArray();
+    const creditCards = await colTarjetas.find().toArray();
 
     accounts.forEach(a => delete a._id);
     clients.forEach(c => delete c._id);
     providers.forEach(p => delete p._id);
+    creditCards.forEach(c => delete c._id);
 
     res.json({
       ok: true,
       accounts,
       clients,
-      providers
+      providers,
+      creditCards
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
