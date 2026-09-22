@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/date_symbol_data_local.dart';
@@ -57,8 +58,8 @@ class AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<AppRoot> {
   late final StreamingController _streamingController;
-  bool _isUnlocked = false;
-  bool _checkingBiometric = true;
+  bool _isUnlocked = kIsWeb;
+  bool _checkingBiometric = !kIsWeb;
   bool _biometricEnabled = false;
 
   @override
@@ -66,7 +67,9 @@ class _AppRootState extends State<AppRoot> {
     super.initState();
     _streamingController = StreamingController();
     _streamingController.init();
-    _checkBiometric();
+    if (!kIsWeb) {
+      _checkBiometric();
+    }
   }
 
   @override

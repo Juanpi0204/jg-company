@@ -382,16 +382,20 @@ class _HeroHeaderState extends State<_HeroHeader> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
-                    onTap: widget.onOpenDrawer,
-                    child: Container(
-                      padding: const EdgeInsets.all(9),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.06),
-                        borderRadius: BorderRadius.circular(11),
-                        border: Border.all(color: Colors.white.withOpacity(0.08)),
+                  Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: widget.onOpenDrawer,
+                      borderRadius: BorderRadius.circular(11),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.06),
+                          borderRadius: BorderRadius.circular(11),
+                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                        ),
+                        child: const Icon(Icons.menu_rounded, color: Colors.white70, size: 22),
                       ),
-                      child: const Icon(Icons.menu_rounded, color: Colors.white70, size: 20),
                     ),
                   ),
                   Container(
