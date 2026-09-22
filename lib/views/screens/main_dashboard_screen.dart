@@ -17,6 +17,7 @@ class MainDashboardScreen extends StatelessWidget {
   final VoidCallback onOpenSecurity;
   final VoidCallback onOpenClients;
   final VoidCallback? onOpenProviders;
+  final VoidCallback? onOpenCreditCards;
   final VoidCallback onOpenDrawer;
 
   const MainDashboardScreen({
@@ -27,6 +28,7 @@ class MainDashboardScreen extends StatelessWidget {
     required this.onOpenSecurity,
     required this.onOpenClients,
     this.onOpenProviders,
+    this.onOpenCreditCards,
     required this.onOpenDrawer,
   }) : super(key: key);
 
@@ -150,11 +152,10 @@ class MainDashboardScreen extends StatelessWidget {
                           const SizedBox(width: 10),
                           Expanded(
                             child: _QuickChip(
-                              icon: Icons.calculate_rounded,
-                              label: 'Conteo',
-                              sublabel: 'Caja diaria',
-                              onTap: () {},
-                              isComingSoon: true,
+                              icon: Icons.credit_card_rounded,
+                              label: 'Tarjetas',
+                              sublabel: 'Compras',
+                              onTap: onOpenCreditCards ?? () {},
                             ),
                           ),
                         ],
@@ -575,14 +576,12 @@ class _QuickChip extends StatelessWidget {
   final String label;
   final String sublabel;
   final VoidCallback onTap;
-  final bool isComingSoon;
 
   const _QuickChip({
     required this.icon,
     required this.label,
     required this.sublabel,
     required this.onTap,
-    this.isComingSoon = false,
   });
 
   @override

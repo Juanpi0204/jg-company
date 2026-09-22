@@ -63,18 +63,40 @@ class _AccountDetailSheetState extends State<AccountDetailSheet> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Barra de arrastre superior típica de iOS
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 16),
-                  decoration: BoxDecoration(
-                    color: AppTheme.textMuted.withOpacity(0.5),
-                    borderRadius: BorderRadius.circular(2),
+              // Barra de arrastre + botón X de cierre (siempre visible)
+              Row(
+                children: [
+                  Expanded(
+                    child: Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 4),
+                        decoration: BoxDecoration(
+                          color: AppTheme.textMuted.withOpacity(0.5),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  // X para cerrar sin tener que hacer scroll
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 4),
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppTheme.cardElevated,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppTheme.borderSubtle),
+                      ),
+                      child: const Icon(Icons.close_rounded,
+                          color: AppTheme.textMuted, size: 16),
+                    ),
+                  ),
+                ],
               ),
+              const SizedBox(height: 12),
 
               // Encabezado del Modal: Nombre Cliente + Estado
               Row(
@@ -161,9 +183,8 @@ class _AccountDetailSheetState extends State<AccountDetailSheet> {
                 ),
               ),
 
-              // Bloque de Acciones Inteligentes: Renovación y Cambio de Clave
+              // Bloque de Acciones — diseño limpio sin colores de fondo
               Container(
-                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color: AppTheme.cardBg,
                   borderRadius: BorderRadius.circular(16),
@@ -171,136 +192,83 @@ class _AccountDetailSheetState extends State<AccountDetailSheet> {
                 ),
                 child: Column(
                   children: [
-                    // Botón Renovar +30 Días (Verde)
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () async {
-                          await widget.controller.renewAccount(widget.account.id, context);
-                          if (context.mounted) Navigator.pop(context);
-                        },
-                        icon: const Icon(Icons.autorenew_rounded, size: 18),
-                        label: const Text('RENOVAR SERVICIO (+30 DÍAS)'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.successGreen,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
+                    // ── Renovar servicio ──────────────────────────────────
+                    _buildActionTile(
+                      icon: Icons.autorenew_rounded,
+                      iconColor: AppTheme.successGreen,
+                      label: 'Renovar Servicio (+30 días)',
+                      sublabel: 'Extiende la fecha de vencimiento',
+                      onTap: () async {
+                        await widget.controller.renewAccount(widget.account.id, context);
+                        if (context.mounted) Navigator.pop(context);
+                      },
+                      showDivider: true,
                     ),
-
-                    const SizedBox(height: 8),
-
-                    Row(
-                      children: [
-                        // Botón Pegar del Proveedor (Cambiar Clave / Cuenta)
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () {
-                              showDialog(
-                                context: context,
-                                builder: (ctx) => SmartPasteDialog(
-                                  onResult: (result) async {
-                                    await widget.controller.updateCredentials(
-                                      widget.account.id,
-                                      cuenta: result.correo,
-                                      clave: result.clave,
-                                      pin: result.pin,
-                                      perfil: result.perfil,
-                                      proveedor: result.proveedor,
-                                      servicio: result.servicio,
-                                    );
-                                    if (context.mounted) {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(
-                                          content: Text('¡Datos de la pantalla actualizados con éxito!'),
-                                          backgroundColor: AppTheme.netflixRed,
-                                        ),
-                                      );
-                                      Navigator.pop(context);
-                                    }
-                                  },
-                                ),
+                    // ── Pegar de Proveedor ────────────────────────────────
+                    _buildActionTile(
+                      icon: Icons.auto_awesome,
+                      iconColor: AppTheme.purpleAccent,
+                      label: 'Actualizar datos del Proveedor',
+                      sublabel: 'Pegar mensaje con nueva clave / cuenta',
+                      onTap: () {
+                        showDialog(
+                          context: context,
+                          builder: (ctx) => SmartPasteDialog(
+                            onResult: (result) async {
+                              await widget.controller.updateCredentials(
+                                widget.account.id,
+                                cuenta: result.correo,
+                                clave: result.clave,
+                                pin: result.pin,
+                                perfil: result.perfil,
+                                proveedor: result.proveedor,
+                                servicio: result.servicio,
                               );
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('¡Datos de la pantalla actualizados con éxito!'),
+                                    backgroundColor: AppTheme.netflixRed,
+                                  ),
+                                );
+                                Navigator.pop(context);
+                              }
                             },
-                            icon: const Icon(Icons.auto_awesome, size: 16, color: AppTheme.purpleAccent),
-                            label: const Text('Pegar de Proveedor'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.textPrimary,
-                              side: const BorderSide(color: AppTheme.purpleAccent),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-
-                        // Botón Notificar Nueva Clave
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => widget.controller.sendNewPasswordWhatsApp(widget.account),
-                            icon: const Icon(Icons.key_rounded, size: 16, color: AppTheme.warningAmber),
-                            label: const Text('Enviar Clave WA'),
-                            style: OutlinedButton.styleFrom(
-                              foregroundColor: AppTheme.textPrimary,
-                              side: const BorderSide(color: AppTheme.warningAmber),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                      ],
+                        );
+                      },
+                      showDivider: true,
                     ),
-
-                    // Botón Reportar Falla a Soporte del Proveedor
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          ReportIssueDialog.mostrar(context, widget.account);
-                        },
-                        icon: const Icon(Icons.report_problem_rounded, size: 17, color: Colors.white),
-                        label: const Text('REPORTAR FALLA A SOPORTE (PROVEEDOR) 🚨'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFFB81D24),
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
+                    // ── Enviar clave nueva por WhatsApp ───────────────────
+                    _buildActionTile(
+                      icon: Icons.key_rounded,
+                      iconColor: AppTheme.warningAmber,
+                      label: 'Enviar nueva clave por WhatsApp',
+                      sublabel: 'Notifica la clave actualizada al cliente',
+                      onTap: () => widget.controller.sendNewPasswordWhatsApp(widget.account),
+                      showDivider: true,
                     ),
-
-                    // Botón de Recordatorio de Vencimiento vía WhatsApp
-                    const SizedBox(height: 8),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => widget.controller.sendRenewalReminderWhatsApp(widget.account),
-                        icon: const Icon(Icons.notifications_active_rounded, size: 16),
-                        label: Text(
-                          widget.account.esPorVencer || widget.account.esVencida
-                              ? '⚠️ ENVIAR RECORDATORIO DE VENCIMIENTO WA'
-                              : '🔔 AVISAR VENCIMIENTO POR WHATSAPP',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: widget.account.esPorVencer || widget.account.esVencida
-                              ? AppTheme.warningAmber
-                              : AppTheme.cardElevated,
-                          foregroundColor: widget.account.esPorVencer || widget.account.esVencida
-                              ? Colors.black
-                              : AppTheme.warningAmber,
-                          padding: const EdgeInsets.symmetric(vertical: 11),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10),
-                            side: BorderSide(
-                              color: AppTheme.warningAmber.withOpacity(0.6),
-                              width: 1,
-                            ),
-                          ),
-                        ),
-                      ),
+                    // ── Avisar vencimiento ────────────────────────────────
+                    _buildActionTile(
+                      icon: Icons.notifications_active_rounded,
+                      iconColor: widget.account.esPorVencer || widget.account.esVencida
+                          ? AppTheme.warningAmber
+                          : AppTheme.textSecondary,
+                      label: widget.account.esPorVencer || widget.account.esVencida
+                          ? '⚠️ Avisar Vencimiento (urgente)'
+                          : 'Avisar Vencimiento por WhatsApp',
+                      sublabel: 'Envía recordatorio al cliente',
+                      onTap: () => widget.controller.sendRenewalReminderWhatsApp(widget.account),
+                      showDivider: true,
+                    ),
+                    // ── Reportar falla ────────────────────────────────────
+                    _buildActionTile(
+                      icon: Icons.report_problem_rounded,
+                      iconColor: AppTheme.netflixRed,
+                      label: 'Reportar Falla a Soporte 🚨',
+                      sublabel: 'Envía reporte al proveedor',
+                      onTap: () => ReportIssueDialog.mostrar(context, widget.account),
+                      showDivider: false,
                     ),
                   ],
                 ),
@@ -602,4 +570,64 @@ class _AccountDetailSheetState extends State<AccountDetailSheet> {
       ),
     );
   }
+
+  /// Tile de acción limpio: icono coloreado + label + sublabel + flecha
+  Widget _buildActionTile({
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required String sublabel,
+    required VoidCallback onTap,
+    required bool showDivider,
+  }) {
+    return Column(
+      children: [
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: iconColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, color: iconColor, size: 18),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: const TextStyle(
+                            color: AppTheme.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                          )),
+                      const SizedBox(height: 1),
+                      Text(sublabel,
+                          style: const TextStyle(
+                            color: AppTheme.textMuted,
+                            fontSize: 11,
+                          )),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.chevron_right_rounded,
+                    color: AppTheme.textMuted, size: 18),
+              ],
+            ),
+          ),
+        ),
+        if (showDivider)
+          const Divider(height: 1, indent: 62, color: AppTheme.borderSubtle),
+      ],
+    );
+  }
 }
+

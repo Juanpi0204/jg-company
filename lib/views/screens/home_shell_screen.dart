@@ -9,6 +9,7 @@ import '../screens/moto_screen.dart';
 import '../screens/security_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/providers_screen.dart';
+import '../screens/credit_cards_screen.dart';
 
 /// ============================================================================
 /// [VISTA / SHELL] HomeShellScreen
@@ -42,16 +43,24 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
     widget.streamingController.addListener(_onStreamingChanged);
 
     // Cargar automáticamente datos de MongoDB Atlas al abrir la app
+    // PROTEGIDO: Solo sobreescribe datos locales si la nube trae datos reales
     CloudSyncService.downloadFromCloud().then((data) {
       if (data != null && mounted) {
-        widget.streamingController.init();
+        // Solo re-init si vinieron datos reales de la nube
+        final cuentas = data['cuentas'] as List?;
+        if (cuentas != null && cuentas.isNotEmpty) {
+          widget.streamingController.init();
+        }
       }
     });
   }
 
   void _onStreamingChanged() {
+    // Protección: solo sincronizar si hay datos reales
+    final accounts = widget.streamingController.accounts;
+    if (accounts.isEmpty) return;
     CloudSyncService.triggerAutoSync(
-      accounts: widget.streamingController.accounts,
+      accounts: accounts,
     );
   }
 
@@ -90,6 +99,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         onOpenSecurity: () => _navigateTo(3),
         onOpenClients: () => _navigateTo(4),
         onOpenProviders: () => _navigateTo(5),
+        onOpenCreditCards: () => _navigateTo(6),
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       ServicesScreen(
@@ -108,6 +118,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       ProvidersScreen(
+        streamingController: widget.streamingController,
+        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
+      // Index 6: Tarjetas de Crédito
+      CreditCardsScreen(
         streamingController: widget.streamingController,
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
@@ -131,6 +146,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
       _DrawerItem(1, Icons.tv_rounded, 'Pantallas & Streaming'),
       _DrawerItem(4, Icons.people_rounded, 'Clientes'),
       _DrawerItem(5, Icons.storefront_rounded, 'Proveedores & Soporte'),
+      _DrawerItem(6, Icons.credit_card_rounded, 'Tarjetas de Crédito'),
       _DrawerItem(2, Icons.two_wheeler_rounded, 'Control Moto & Aceite'),
       _DrawerItem(3, Icons.shield_rounded, 'Seguridad & Face ID'),
     ];
@@ -224,7 +240,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
                   Icon(Icons.verified_user_rounded, color: AppTheme.successGreen, size: 16),
                   SizedBox(width: 8),
                   Text(
-                    'Versión iOS Pro 1.0',
+                    'Versión Multi-plataforma 1.0',
                     style: TextStyle(color: AppTheme.textMuted, fontSize: 11, fontWeight: FontWeight.w600),
                   ),
                 ],

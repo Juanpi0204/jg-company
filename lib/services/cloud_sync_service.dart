@@ -7,6 +7,7 @@ import '../models/streaming_account_model.dart';
 import '../models/client_model.dart';
 import '../models/provider_model.dart';
 import '../models/storage_service.dart';
+import '../models/credit_card_model.dart';
 
 /// Estado de la sincronización en la nube
 enum SyncStatus {
@@ -203,13 +204,29 @@ class CloudSyncService {
     required List<StreamingAccountModel> accounts,
     List<ClientModel>? clients,
     List<ProviderModel>? providers,
+    List<CreditCardModel>? creditCards,
   }) {
+    // Protección: nunca sincronizar si no hay absolutamente ningún dato
+    // Esto evita que un dispositivo nuevo (sin datos locales) borre MongoDB
+    final hayDatos = accounts.isNotEmpty ||
+        (clients?.isNotEmpty ?? false) ||
+        (providers?.isNotEmpty ?? false) ||
+        (creditCards?.isNotEmpty ?? false);
+    if (!hayDatos) {
+      print('⚠️ [AUTO-SYNC] Ignorado: no hay datos locales. MongoDB protegido.');
+      return;
+    }
     _debounceTimer?.cancel();
     _debounceTimer = Timer(const Duration(milliseconds: 2000), () async {
       final auto = await isAutoSyncEnabled();
       final configured = await isConfigured();
       if (auto && configured) {
-        await syncToCloud(accounts: accounts, clients: clients, providers: providers);
+        await syncToCloud(
+          accounts: accounts,
+          clients: clients,
+          providers: providers,
+          creditCards: creditCards,
+        );
       }
     });
   }
@@ -220,6 +237,8 @@ class CloudSyncService {
     required List<StreamingAccountModel> accounts,
     List<ClientModel>? clients,
     List<ProviderModel>? providers,
+    List<CreditCardModel>? creditCards,
+    bool forceEmpty = false,
   }) async {
     statusNotifier.value = SyncStatus.syncing;
     statusMessageNotifier.value = 'Sincronizando con MongoDB Atlas...';
@@ -227,7 +246,17 @@ class CloudSyncService {
     try {
       final listaClientes = clients ?? await ClientsService.getAll();
       final listaProveedores = providers ?? await ProvidersService.getAll();
+      final listaTarjetas = creditCards ?? await CreditCardsService.getAll();
 
+      // Protección: si todo está vacío y no es forceEmpty, no sincronizar
+      final hayDatos = accounts.isNotEmpty || listaClientes.isNotEmpty ||
+          listaProveedores.isNotEmpty || listaTarjetas.isNotEmpty;
+      if (!hayDatos && !forceEmpty) {
+        print('⚠️ [SYNC] Todos los datos están vacíos. Sync cancelado para proteger MongoDB.');
+        statusNotifier.value = SyncStatus.idle;
+        statusMessageNotifier.value = 'Sin datos para sincronizar';
+        return false;
+      }
       // 1. Intentar primero con el Mongo Sync Bridge (Cloud o Local)
       try {
         final bUrl = await getBridgeUrl();
@@ -235,6 +264,8 @@ class CloudSyncService {
           'accounts': accounts.map((a) => a.toMap()).toList(),
           'clients': listaClientes.map((c) => c.toMap()).toList(),
           'providers': listaProveedores.map((p) => p.toMap()).toList(),
+          'creditCards': listaTarjetas.map((c) => c.toMap()).toList(),
+          'forceEmpty': forceEmpty,
         });
 
         var bridgeResp = await http.post(
@@ -406,6 +437,16 @@ class CloudSyncService {
             await ProvidersService.save(proveedores);
           }
 
+          // Restaurar tarjetas de crédito si existen
+          final List docsTC = data['creditCards'] ?? [];
+          if (docsTC.isNotEmpty) {
+            final tarjetas = docsTC.map((d) {
+              final map = Map<String, dynamic>.from(d);
+              if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
+              return CreditCardModel.fromMap(map);
+            }).toList();
+            await CreditCardsService.save(tarjetas);
+          }
           await ClientsService.save(clientes);
           await StorageService.saveAccounts(cuentas);
 

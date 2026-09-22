@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Permiso de Internet para sync con MongoDB Atlas -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Permisos para biometría (local_auth) en Android -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+    <uses-permission android:name="android.permission.USE_FINGERPRINT"/>
     <application
         android:label="jg_company_app"
         android:name="${applicationName}"

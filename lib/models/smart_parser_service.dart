@@ -82,14 +82,20 @@ class SmartParserService {
       }
 
       // 3. Detectar Contraseña / Clave
+      // PRIMERA PASADA: solo líneas con separador EXPLÍCITO (clave: valor, clave= valor)
+      // Esto evita capturar "actualización de clave🍿" donde clave aparece sin separador
       if (clave == null) {
-        final clavePrefixRegex = RegExp(
-          r'(?:clave|password|pass|contrase[ñn]a|pwd)\s*[:=\-]?\s*([^\s,;]+)',
+        final claveConSeparadorRegex = RegExp(
+          r'(?:clave|password|pass|contrase[ñn]a|pwd)\s*[:=]\s*([^\s,;]+)',
           caseSensitive: false,
         );
-        final claveMatch = clavePrefixRegex.firstMatch(cleanLine);
+        final claveMatch = claveConSeparadorRegex.firstMatch(cleanLine);
         if (claveMatch != null) {
-          clave = claveMatch.group(1)?.trim();
+          final candidata = claveMatch.group(1)?.trim() ?? '';
+          // Validar que no sea solo emojis o símbolo raro (longitud mínima razonable)
+          if (candidata.isNotEmpty && candidata.length >= 4) {
+            clave = candidata;
+          }
         }
       }
 

@@ -22,11 +22,13 @@ import '../theme/app_theme.dart';
 class MainMenuScreen extends StatefulWidget {
   final StreamingController streamingController;
   final VoidCallback onOpenStreaming;
+  final VoidCallback? onOpenCreditCards;
 
   const MainMenuScreen({
     Key? key,
     required this.streamingController,
     required this.onOpenStreaming,
+    this.onOpenCreditCards,
   }) : super(key: key);
 
   @override
@@ -124,10 +126,10 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(Icons.apple, size: 14, color: AppTheme.textSecondary),
+                                  Icon(Icons.devices_rounded, size: 14, color: AppTheme.textSecondary),
                                   SizedBox(width: 4),
                                   Text(
-                                    'iOS Pro',
+                                    'Multi-plataforma',
                                     style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
                                   ),
                                 ],
@@ -235,7 +237,19 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         onTap: widget.onOpenStreaming,
                       ),
 
-                      // 2. CONTROL DE MOTO & ACEITE
+                      // 2. TARJETAS DE CRÉDITO (MÓDULO ACTIVO)
+                      _buildMenuCard(
+                        title: 'TARJETAS DE\nCRÉDITO',
+                        subtitle: 'Control de compras y bolsillo',
+                        icon: Icons.credit_card_rounded,
+                        accentColor: const Color(0xFF1A73E8),
+                        badgeText: 'ACTIVO',
+                        badgeColor: AppTheme.successGreen,
+                        esDestacado: false,
+                        onTap: () => widget.onOpenCreditCards?.call(),
+                      ),
+
+                      // 3. CONTROL DE MOTO & ACEITE
                       _buildMenuCard(
                         title: 'MOTO &\nACEITE',
                         subtitle: '${_kmRestantes.toStringAsFixed(0)} km restantes',
