@@ -47,18 +47,19 @@ app.post('/sync', async (req, res) => {
       clients = [],
       providers = [],
       creditCards = [],
+      debts = [],
       // forceEmpty: true solo si el usuario borró todos los datos intencionalmente
       forceEmpty = false
     } = req.body;
 
-    console.log(`📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes, ${providers.length} proveedores, ${creditCards.length} tarjetas`);
+    console.log(`📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes, ${providers.length} proveedores, ${creditCards.length} tarjetas, ${debts.length} deudas`);
 
     // ── REGLA DE SEGURIDAD ANTI-BORRADO ─────────────────────────────────────
     // Si todos los arrays están vacíos y forceEmpty no es true,
     // es probable que sea un sync accidental desde dispositivo sin datos locales.
     // En ese caso NO tocamos MongoDB.
     const todosVacios = accounts.length === 0 && clients.length === 0 &&
-                        providers.length === 0 && creditCards.length === 0;
+                        providers.length === 0 && creditCards.length === 0 && debts.length === 0;
     if (todosVacios && !forceEmpty) {
       console.log('⚠️ [SYNC] Todos los arrays vacíos sin forceEmpty=true. Sync ignorado para proteger datos.');
       return res.json({
@@ -139,6 +140,23 @@ app.post('/sync', async (req, res) => {
       await colTarjetas.deleteMany({});
     }
 
+    // 5. Sincronizar Deudas & Préstamos
+    const colDeudas = database.collection('deudas');
+    const debtIds = debts.map(d => String(d.id)).filter(Boolean);
+
+    if (debtIds.length > 0) {
+      await colDeudas.deleteMany({ id: { $nin: debtIds } });
+      for (const debt of debts) {
+        if (debt.id) {
+          const doc = { ...debt };
+          delete doc._id;
+          await colDeudas.replaceOne({ id: String(debt.id) }, doc, { upsert: true });
+        }
+      }
+    } else if (forceEmpty) {
+      await colDeudas.deleteMany({});
+    }
+
     console.log(`✅ [SYNC EXITOSO] MongoDB Atlas actualizado.`);
 
     res.json({
@@ -148,6 +166,7 @@ app.post('/sync', async (req, res) => {
       syncedClients: clients.length,
       syncedProviders: providers.length,
       syncedCreditCards: creditCards.length,
+      syncedDebts: debts.length,
       timestamp: new Date().toISOString()
     });
   } catch (err) {
@@ -164,23 +183,27 @@ app.get('/pull', async (req, res) => {
     const colClientes = database.collection('clientes');
     const colProveedores = database.collection('proveedores');
     const colTarjetas = database.collection('tarjetas_credito');
+    const colDeudas = database.collection('deudas');
 
     const accounts = await colPantallas.find().toArray();
     const clients = await colClientes.find().toArray();
     const providers = await colProveedores.find().toArray();
     const creditCards = await colTarjetas.find().toArray();
+    const debts = await colDeudas.find().toArray();
 
     accounts.forEach(a => delete a._id);
     clients.forEach(c => delete c._id);
     providers.forEach(p => delete p._id);
     creditCards.forEach(c => delete c._id);
+    debts.forEach(d => delete d._id);
 
     res.json({
       ok: true,
       accounts,
       clients,
       providers,
-      creditCards
+      creditCards,
+      debts
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });

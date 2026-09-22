@@ -55,8 +55,11 @@ class MongoSyncBridge {
 
         final accounts = (payload['accounts'] as List?) ?? [];
         final clients = (payload['clients'] as List?) ?? [];
+        final providers = (payload['providers'] as List?) ?? [];
+        final creditCards = (payload['creditCards'] as List?) ?? [];
+        final debts = (payload['debts'] as List?) ?? [];
 
-        print('📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes');
+        print('📥 [SYNC] Recibido: ${accounts.length} pantallas, ${clients.length} clientes, ${providers.length} proveedores, ${creditCards.length} tarjetas, ${debts.length} deudas');
 
         // 1. Sincronizar Pantallas
         final colPantallas = db.collection('pantallas');
@@ -106,7 +109,79 @@ class MongoSyncBridge {
           await colClientes.deleteMany({});
         }
 
-        print('✅ [SYNC EXITOSO] MongoDB Atlas actualizado. (${accounts.length} pantallas, ${clients.length} clientes)');
+        // 3. Sincronizar Proveedores
+        final colProveedores = db.collection('proveedores');
+        final currentProviderIds = providers
+            .map((p) => (p as Map)['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+
+        if (currentProviderIds.isNotEmpty) {
+          await colProveedores.deleteMany(where.nin('id', currentProviderIds));
+          for (final pr in providers) {
+            final prMap = Map<String, dynamic>.from(pr as Map);
+            final id = prMap['id']?.toString() ?? '';
+            if (id.isNotEmpty) {
+              await colProveedores.replaceOne(
+                where.eq('id', id),
+                prMap,
+                upsert: true,
+              );
+            }
+          }
+        } else {
+          await colProveedores.deleteMany({});
+        }
+
+        // 4. Sincronizar Tarjetas
+        final colTarjetas = db.collection('tarjetas_credito');
+        final currentCardIds = creditCards
+            .map((c) => (c as Map)['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+
+        if (currentCardIds.isNotEmpty) {
+          await colTarjetas.deleteMany(where.nin('id', currentCardIds));
+          for (final tc in creditCards) {
+            final tcMap = Map<String, dynamic>.from(tc as Map);
+            final id = tcMap['id']?.toString() ?? '';
+            if (id.isNotEmpty) {
+              await colTarjetas.replaceOne(
+                where.eq('id', id),
+                tcMap,
+                upsert: true,
+              );
+            }
+          }
+        } else {
+          await colTarjetas.deleteMany({});
+        }
+
+        // 5. Sincronizar Deudas & Préstamos
+        final colDeudas = db.collection('deudas');
+        final currentDebtIds = debts
+            .map((d) => (d as Map)['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+
+        if (currentDebtIds.isNotEmpty) {
+          await colDeudas.deleteMany(where.nin('id', currentDebtIds));
+          for (final debt in debts) {
+            final debtMap = Map<String, dynamic>.from(debt as Map);
+            final id = debtMap['id']?.toString() ?? '';
+            if (id.isNotEmpty) {
+              await colDeudas.replaceOne(
+                where.eq('id', id),
+                debtMap,
+                upsert: true,
+              );
+            }
+          }
+        } else {
+          await colDeudas.deleteMany({});
+        }
+
+        print('✅ [SYNC EXITOSO] MongoDB Atlas actualizado. (${accounts.length} pantallas, ${clients.length} clientes, ${debts.length} deudas)');
 
         return Response.ok(
           jsonEncode({
@@ -114,6 +189,9 @@ class MongoSyncBridge {
             'message': 'Sincronización exitosa con MongoDB Atlas',
             'syncedAccounts': accounts.length,
             'syncedClients': clients.length,
+            'syncedProviders': providers.length,
+            'syncedCreditCards': creditCards.length,
+            'syncedDebts': debts.length,
             'timestamp': DateTime.now().toIso8601String(),
           }),
           headers: {'content-type': 'application/json'},
@@ -134,22 +212,30 @@ class MongoSyncBridge {
         final db = await getDb();
         final colPantallas = db.collection('pantallas');
         final colClientes = db.collection('clientes');
+        final colProveedores = db.collection('proveedores');
+        final colTarjetas = db.collection('tarjetas_credito');
+        final colDeudas = db.collection('deudas');
 
         final pantallasList = await colPantallas.find().toList();
         final clientesList = await colClientes.find().toList();
+        final proveedoresList = await colProveedores.find().toList();
+        final tarjetasList = await colTarjetas.find().toList();
+        final deudasList = await colDeudas.find().toList();
 
-        for (final item in pantallasList) {
-          item.remove('_id');
-        }
-        for (final item in clientesList) {
-          item.remove('_id');
-        }
+        for (final item in pantallasList) { item.remove('_id'); }
+        for (final item in clientesList) { item.remove('_id'); }
+        for (final item in proveedoresList) { item.remove('_id'); }
+        for (final item in tarjetasList) { item.remove('_id'); }
+        for (final item in deudasList) { item.remove('_id'); }
 
         return Response.ok(
           jsonEncode({
             'ok': true,
             'accounts': pantallasList,
             'clients': clientesList,
+            'providers': proveedoresList,
+            'creditCards': tarjetasList,
+            'debts': deudasList,
           }),
           headers: {'content-type': 'application/json'},
         );
