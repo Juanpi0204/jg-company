@@ -204,7 +204,6 @@ class _SecurityScreenState extends State<SecurityScreen> {
             const SizedBox(height: 14),
             TextField(
               controller: ctrl,
-              autofocus: true,
               textCapitalization: TextCapitalization.words,
               style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16),
               decoration: InputDecoration(

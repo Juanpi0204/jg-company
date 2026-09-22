@@ -1390,7 +1390,6 @@ class _NuevoAbonoSheetState extends State<_NuevoAbonoSheet> {
               controller: _montoCtrl,
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              autofocus: true,
               style: const TextStyle(color: AppTheme.textPrimary, fontSize: 16, fontWeight: FontWeight.bold),
               decoration: InputDecoration(
                 labelText: 'Monto a abonar (\$)',

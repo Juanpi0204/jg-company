@@ -508,7 +508,6 @@ class _MotoScreenState extends State<MotoScreen> {
     return TextField(
       controller: ctrl,
       keyboardType: TextInputType.number,
-      autofocus: true,
       style: const TextStyle(color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.bold),
       decoration: InputDecoration(
         hintText: hint,

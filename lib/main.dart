@@ -76,15 +76,29 @@ class _AppRootState extends State<AppRoot> {
   }
 
   Future<void> _checkBiometric() async {
-    final enabled = await BiometricService.isBiometricEnabled();
-    final available = await BiometricService.isAvailable();
+    try {
+      final enabled = await BiometricService.isBiometricEnabled()
+          .timeout(const Duration(milliseconds: 1200), onTimeout: () => false);
+      final available = await BiometricService.isAvailable()
+          .timeout(const Duration(milliseconds: 1200), onTimeout: () => false);
 
-    setState(() {
-      _biometricEnabled = enabled && available;
-      // Si no hay biometría habilitada, desbloquear directo
-      _isUnlocked = !_biometricEnabled;
-      _checkingBiometric = false;
-    });
+      if (mounted) {
+        setState(() {
+          _biometricEnabled = enabled && available;
+          // Si no hay biometría habilitada, desbloquear directo
+          _isUnlocked = !_biometricEnabled;
+          _checkingBiometric = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _biometricEnabled = false;
+          _isUnlocked = true;
+          _checkingBiometric = false;
+        });
+      }
+    }
   }
 
   void _onUnlocked() {

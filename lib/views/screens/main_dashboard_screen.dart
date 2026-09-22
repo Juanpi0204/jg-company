@@ -311,7 +311,6 @@ class _HeroHeaderState extends State<_HeroHeader> {
             const SizedBox(height: 14),
             TextField(
               controller: ctrl,
-              autofocus: true,
               style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
               decoration: InputDecoration(
                 hintText: 'Tu nombre',
