@@ -23,12 +23,14 @@ class MainMenuScreen extends StatefulWidget {
   final StreamingController streamingController;
   final VoidCallback onOpenStreaming;
   final VoidCallback? onOpenCreditCards;
+  final VoidCallback? onOpenDebts;
 
   const MainMenuScreen({
     Key? key,
     required this.streamingController,
     required this.onOpenStreaming,
     this.onOpenCreditCards,
+    this.onOpenDebts,
   }) : super(key: key);
 
   @override
@@ -260,15 +262,15 @@ class _MainMenuScreenState extends State<MainMenuScreen> {
                         onTap: _mostrarModalMoto,
                       ),
 
-                      // 3. DEUDAS Y PRÉSTAMOS
+                      // 3. DEUDAS Y PRÉSTAMOS (MÓDULO ACTIVO)
                       _buildMenuCard(
                         title: 'DEUDAS Y\nPRÉSTAMOS',
-                        subtitle: 'Control de cobros',
-                        icon: Icons.account_balance_wallet_rounded,
-                        accentColor: AppTheme.infoBlue,
-                        badgeText: 'PRÓXIMO',
-                        badgeColor: AppTheme.infoBlue,
-                        onTap: () => _mostrarAvisoModulo('Deudas y Préstamos'),
+                        subtitle: 'Control de deudas y abonos',
+                        icon: Icons.request_quote_rounded,
+                        accentColor: const Color(0xFFE91E63),
+                        badgeText: 'ACTIVO',
+                        badgeColor: AppTheme.successGreen,
+                        onTap: () => widget.onOpenDebts?.call(),
                       ),
 
                       // 4. ALCANCÍA META

@@ -8,6 +8,7 @@ import '../models/client_model.dart';
 import '../models/provider_model.dart';
 import '../models/storage_service.dart';
 import '../models/credit_card_model.dart';
+import '../models/debt_model.dart';
 
 /// Estado de la sincronización en la nube
 enum SyncStatus {
@@ -205,13 +206,15 @@ class CloudSyncService {
     List<ClientModel>? clients,
     List<ProviderModel>? providers,
     List<CreditCardModel>? creditCards,
+    List<DebtModel>? debts,
   }) {
     // Protección: nunca sincronizar si no hay absolutamente ningún dato
     // Esto evita que un dispositivo nuevo (sin datos locales) borre MongoDB
     final hayDatos = accounts.isNotEmpty ||
         (clients?.isNotEmpty ?? false) ||
         (providers?.isNotEmpty ?? false) ||
-        (creditCards?.isNotEmpty ?? false);
+        (creditCards?.isNotEmpty ?? false) ||
+        (debts?.isNotEmpty ?? false);
     if (!hayDatos) {
       print('⚠️ [AUTO-SYNC] Ignorado: no hay datos locales. MongoDB protegido.');
       return;
@@ -226,6 +229,7 @@ class CloudSyncService {
           clients: clients,
           providers: providers,
           creditCards: creditCards,
+          debts: debts,
         );
       }
     });
@@ -238,6 +242,7 @@ class CloudSyncService {
     List<ClientModel>? clients,
     List<ProviderModel>? providers,
     List<CreditCardModel>? creditCards,
+    List<DebtModel>? debts,
     bool forceEmpty = false,
   }) async {
     statusNotifier.value = SyncStatus.syncing;
@@ -247,10 +252,11 @@ class CloudSyncService {
       final listaClientes = clients ?? await ClientsService.getAll();
       final listaProveedores = providers ?? await ProvidersService.getAll();
       final listaTarjetas = creditCards ?? await CreditCardsService.getAll();
+      final listaDeudas = debts ?? await DebtsService.getAll();
 
       // Protección: si todo está vacío y no es forceEmpty, no sincronizar
       final hayDatos = accounts.isNotEmpty || listaClientes.isNotEmpty ||
-          listaProveedores.isNotEmpty || listaTarjetas.isNotEmpty;
+          listaProveedores.isNotEmpty || listaTarjetas.isNotEmpty || listaDeudas.isNotEmpty;
       if (!hayDatos && !forceEmpty) {
         print('⚠️ [SYNC] Todos los datos están vacíos. Sync cancelado para proteger MongoDB.');
         statusNotifier.value = SyncStatus.idle;
@@ -265,6 +271,7 @@ class CloudSyncService {
           'clients': listaClientes.map((c) => c.toMap()).toList(),
           'providers': listaProveedores.map((p) => p.toMap()).toList(),
           'creditCards': listaTarjetas.map((c) => c.toMap()).toList(),
+          'debts': listaDeudas.map((d) => d.toMap()).toList(),
           'forceEmpty': forceEmpty,
         });
 
@@ -446,6 +453,17 @@ class CloudSyncService {
               return CreditCardModel.fromMap(map);
             }).toList();
             await CreditCardsService.save(tarjetas);
+          }
+
+          // Restaurar deudas si existen
+          final List docsDebts = data['debts'] ?? [];
+          if (docsDebts.isNotEmpty) {
+            final deudas = docsDebts.map((d) {
+              final map = Map<String, dynamic>.from(d);
+              if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
+              return DebtModel.fromMap(map);
+            }).toList();
+            await DebtsService.save(deudas);
           }
           await ClientsService.save(clientes);
           await StorageService.saveAccounts(cuentas);

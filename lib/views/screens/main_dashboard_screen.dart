@@ -18,6 +18,7 @@ class MainDashboardScreen extends StatelessWidget {
   final VoidCallback onOpenClients;
   final VoidCallback? onOpenProviders;
   final VoidCallback? onOpenCreditCards;
+  final VoidCallback? onOpenDebts;
   final VoidCallback onOpenDrawer;
 
   const MainDashboardScreen({
@@ -29,6 +30,7 @@ class MainDashboardScreen extends StatelessWidget {
     required this.onOpenClients,
     this.onOpenProviders,
     this.onOpenCreditCards,
+    this.onOpenDebts,
     required this.onOpenDrawer,
   }) : super(key: key);
 
@@ -134,10 +136,19 @@ class MainDashboardScreen extends StatelessWidget {
                         children: [
                           Expanded(
                             child: _QuickChip(
-                              icon: Icons.shield_rounded,
-                              label: 'Seguridad',
-                              sublabel: 'Face ID & Perfil',
-                              onTap: onOpenSecurity,
+                              icon: Icons.credit_card_rounded,
+                              label: 'Tarjetas',
+                              sublabel: 'Compras',
+                              onTap: onOpenCreditCards ?? () {},
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _QuickChip(
+                              icon: Icons.request_quote_rounded,
+                              label: 'Deudas',
+                              sublabel: 'Abonos',
+                              onTap: onOpenDebts ?? () {},
                             ),
                           ),
                           const SizedBox(width: 10),
@@ -149,13 +160,17 @@ class MainDashboardScreen extends StatelessWidget {
                               onTap: onOpenProviders ?? () {},
                             ),
                           ),
-                          const SizedBox(width: 10),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
                           Expanded(
                             child: _QuickChip(
-                              icon: Icons.credit_card_rounded,
-                              label: 'Tarjetas',
-                              sublabel: 'Compras',
-                              onTap: onOpenCreditCards ?? () {},
+                              icon: Icons.shield_rounded,
+                              label: 'Seguridad',
+                              sublabel: 'Face ID & Perfil',
+                              onTap: onOpenSecurity,
                             ),
                           ),
                         ],

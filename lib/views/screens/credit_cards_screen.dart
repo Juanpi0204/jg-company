@@ -300,19 +300,10 @@ class _CreditCardsScreenState extends State<CreditCardsScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _DetalleMovimientosSheet(
         tarjeta: tarjeta,
-        onToggleBolsillo: (movId) async {
-          await CreditCardsService.toggleBolsillo(tarjeta.id, movId);
-          await _cargar();
-          _syncCloud();
-        },
-        onEliminarMovimiento: (movId) async {
-          await CreditCardsService.deleteMovimiento(tarjeta.id, movId);
-          await _cargar();
-          _syncCloud();
-        },
-        onAgregarMovimiento: () {
-          _mostrarFormMovimiento(tarjeta);
-        },
+        onToggleBolsillo: (_) => _syncCloud(),
+        onEliminarMovimiento: (_) => _syncCloud(),
+        onEditarCiclo: () => _mostrarConfigCiclo(tarjeta),
+        onSyncCloud: _syncCloud,
       ),
     );
   }
@@ -683,27 +674,173 @@ class _TarjetaCard extends StatelessWidget {
 
 
 // ============================================================================
-// Sheet: Detalle de movimientos de una tarjeta
+// Sheet: Detalle de movimientos de una tarjeta (Reactivo en tiempo real)
 // ============================================================================
-class _DetalleMovimientosSheet extends StatelessWidget {
+class _DetalleMovimientosSheet extends StatefulWidget {
   final CreditCardModel tarjeta;
-  final Function(String movId) onToggleBolsillo;
-  final Function(String movId) onEliminarMovimiento;
-  final VoidCallback onAgregarMovimiento;
+  final Function(String movId)? onToggleBolsillo;
+  final Function(String movId)? onEliminarMovimiento;
+  final VoidCallback? onEditarCiclo;
+  final VoidCallback? onSyncCloud;
 
   const _DetalleMovimientosSheet({
     required this.tarjeta,
-    required this.onToggleBolsillo,
-    required this.onEliminarMovimiento,
-    required this.onAgregarMovimiento,
+    this.onToggleBolsillo,
+    this.onEliminarMovimiento,
+    this.onEditarCiclo,
+    this.onSyncCloud,
   });
+
+  @override
+  State<_DetalleMovimientosSheet> createState() => _DetalleMovimientosSheetState();
+}
+
+class _DetalleMovimientosSheetState extends State<_DetalleMovimientosSheet> {
+  late CreditCardModel _tarjeta;
+
+  @override
+  void initState() {
+    super.initState();
+    _tarjeta = widget.tarjeta;
+    CreditCardsService.notifier.addListener(_recargarTarjeta);
+    _recargarTarjeta();
+  }
+
+  @override
+  void didUpdateWidget(covariant _DetalleMovimientosSheet oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tarjeta.id != widget.tarjeta.id) {
+      _tarjeta = widget.tarjeta;
+      _recargarTarjeta();
+    }
+  }
+
+  @override
+  void dispose() {
+    CreditCardsService.notifier.removeListener(_recargarTarjeta);
+    super.dispose();
+  }
+
+  Future<void> _recargarTarjeta() async {
+    final tarjetas = await CreditCardsService.getAll();
+    final idx = tarjetas.indexWhere((t) => t.id == _tarjeta.id);
+    if (idx != -1 && mounted) {
+      setState(() {
+        _tarjeta = tarjetas[idx];
+      });
+    }
+  }
+
+  Future<void> _toggleBolsillo(String movId) async {
+    // 1. Actualización optimista inmediata en UI (0 ms de espera)
+    setState(() {
+      final movs = _tarjeta.movimientos.map((m) {
+        if (m.id == movId) {
+          final nuevo = !m.subioBolsillo;
+          return m.copyWith(
+            subioBolsillo: nuevo,
+            fechaSubidaBolsillo: nuevo ? DateTime.now() : null,
+          );
+        }
+        return m;
+      }).toList();
+      _tarjeta = _tarjeta.copyWith(movimientos: movs);
+    });
+
+    // 2. Persistir en servicio (dispara CreditCardsService.notifier.value++)
+    await CreditCardsService.toggleBolsillo(_tarjeta.id, movId);
+    widget.onToggleBolsillo?.call(movId);
+    widget.onSyncCloud?.call();
+  }
+
+  Future<void> _eliminarMovimiento(String movId) async {
+    // 1. Actualización optimista inmediata
+    setState(() {
+      final movs = _tarjeta.movimientos.where((m) => m.id != movId).toList();
+      _tarjeta = _tarjeta.copyWith(movimientos: movs);
+    });
+
+    // 2. Persistir en servicio
+    await CreditCardsService.deleteMovimiento(_tarjeta.id, movId);
+    widget.onEliminarMovimiento?.call(movId);
+    widget.onSyncCloud?.call();
+  }
+
+  Future<void> _confirmarEliminarMovimiento(CreditCardMovement m) async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1F1F24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text('Eliminar compra',
+            style: TextStyle(color: AppTheme.textPrimary, fontWeight: FontWeight.bold, fontSize: 16)),
+        content: Text(
+          '¿Deseas eliminar "${m.descripcion}" (${NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0).format(m.monto)})?',
+          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar', style: TextStyle(color: AppTheme.textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppTheme.netflixRed,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar == true) {
+      await _eliminarMovimiento(m.id);
+    }
+  }
+
+  void _abrirNuevoMovimiento() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _NuevoMovimientoSheet(
+        tarjeta: _tarjeta,
+        onGuardar: (descripcion, monto) async {
+          await CreditCardsService.addMovimiento(_tarjeta.id, descripcion, monto);
+          widget.onSyncCloud?.call();
+        },
+      ),
+    );
+  }
+
+  void _abrirConfigCiclo() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditarCicloSheet(
+        tarjeta: _tarjeta,
+        onGuardar: (diaCorte, diaLimitePago, metaMensual) async {
+          await CreditCardsService.updateCiclo(
+            _tarjeta.id,
+            diaCorte: diaCorte,
+            diaLimitePago: diaLimitePago,
+            metaMensual: metaMensual,
+          );
+          widget.onSyncCloud?.call();
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0);
     final dateFmt = DateFormat('dd/MM/yyyy');
 
-    final movimientosOrdenados = [...tarjeta.movimientos]
+    final movimientosOrdenados = [..._tarjeta.movimientos]
       ..sort((a, b) => b.fecha.compareTo(a.fecha));
 
     return DraggableScrollableSheet(
@@ -727,7 +864,7 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
-            // Header con nombre tarjeta + botón cerrar
+            // Header con nombre tarjeta + botón ciclo + botón agregar + botón cerrar
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
               child: Row(
@@ -736,20 +873,23 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                     width: 14,
                     height: 14,
                     margin: const EdgeInsets.only(right: 10),
-                    decoration: BoxDecoration(color: tarjeta.color, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: _tarjeta.color, shape: BoxShape.circle),
                   ),
                   Expanded(
                     child: Text(
-                      tarjeta.nombre,
+                      _tarjeta.nombre,
                       style: const TextStyle(
                           color: AppTheme.textPrimary, fontSize: 18, fontWeight: FontWeight.w900),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
+                  IconButton(
+                    icon: const Icon(Icons.tune_rounded, size: 20, color: AppTheme.textMuted),
+                    tooltip: 'Configurar corte y meta',
+                    onPressed: _abrirConfigCiclo,
+                  ),
                   TextButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onAgregarMovimiento();
-                    },
+                    onPressed: _abrirNuevoMovimiento,
                     icon: const Icon(Icons.add_rounded, size: 16),
                     label: const Text('Agregar'),
                     style: TextButton.styleFrom(
@@ -773,16 +913,47 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: AppTheme.borderSubtle),
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                child: Column(
                   children: [
-                    _colResumen('TOTAL', fmt.format(tarjeta.totalComprado), AppTheme.textPrimary),
-                    Container(width: 1, height: 30, color: AppTheme.borderSubtle),
-                    _colResumen('⏳ PENDIENTE', fmt.format(tarjeta.totalPendienteBolsillo),
-                        const Color(0xFFFFD54F)),
-                    Container(width: 1, height: 30, color: AppTheme.borderSubtle),
-                    _colResumen('✅ BOLSILLO', fmt.format(tarjeta.totalSubidoBolsillo),
-                        const Color(0xFF69F0AE)),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _colResumen('TOTAL', fmt.format(_tarjeta.totalComprado), AppTheme.textPrimary),
+                        Container(width: 1, height: 30, color: AppTheme.borderSubtle),
+                        _colResumen('⏳ PENDIENTE', fmt.format(_tarjeta.totalPendienteBolsillo),
+                            const Color(0xFFFFD54F)),
+                        Container(width: 1, height: 30, color: AppTheme.borderSubtle),
+                        _colResumen('✅ BOLSILLO', fmt.format(_tarjeta.totalSubidoBolsillo),
+                            const Color(0xFF69F0AE)),
+                      ],
+                    ),
+                    if (_tarjeta.diaCorte > 0 || _tarjeta.metaMensual > 0) ...[
+                      const SizedBox(height: 10),
+                      const Divider(color: AppTheme.borderSubtle, height: 1),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          if (_tarjeta.diaCorte > 0)
+                            Text(
+                              '✂️ Ciclo actual: ${fmt.format(_tarjeta.totalCicloActual)}',
+                              style: const TextStyle(
+                                  color: Colors.white70, fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          if (_tarjeta.metaMensual > 0)
+                            Text(
+                              '${(_tarjeta.porcentajeMeta * 100).toStringAsFixed(0)}% meta (${fmt.format(_tarjeta.metaMensual)})',
+                              style: TextStyle(
+                                color: _tarjeta.metaCumplida
+                                    ? const Color(0xFF69F0AE)
+                                    : const Color(0xFFFFD54F),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -799,10 +970,7 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                         const Text('Sin movimientos',
                             style: TextStyle(color: AppTheme.textMuted, fontSize: 14)),
                         TextButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            onAgregarMovimiento();
-                          },
+                          onPressed: _abrirNuevoMovimiento,
                           child: const Text('Agregar primera compra →',
                               style: TextStyle(color: Color(0xFF1A73E8))),
                         ),
@@ -827,7 +995,7 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                             ),
                             child: const Icon(Icons.delete_outline, color: AppTheme.netflixRed),
                           ),
-                          onDismissed: (_) => onEliminarMovimiento(m.id),
+                          onDismissed: (_) => _eliminarMovimiento(m.id),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                             decoration: BoxDecoration(
@@ -845,7 +1013,7 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                               children: [
                                 // Icono estado bolsillo
                                 GestureDetector(
-                                  onTap: () => onToggleBolsillo(m.id),
+                                  onTap: () => _toggleBolsillo(m.id),
                                   child: Container(
                                     width: 38,
                                     height: 38,
@@ -914,7 +1082,7 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                                     ),
                                     const SizedBox(height: 4),
                                     GestureDetector(
-                                      onTap: () => onToggleBolsillo(m.id),
+                                      onTap: () => _toggleBolsillo(m.id),
                                       child: Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                         decoration: BoxDecoration(
@@ -936,6 +1104,16 @@ class _DetalleMovimientosSheet extends StatelessWidget {
                                       ),
                                     ),
                                   ],
+                                ),
+                                const SizedBox(width: 6),
+                                // Botón eliminar compra directo y accesible
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded,
+                                      color: AppTheme.netflixRed, size: 20),
+                                  tooltip: 'Eliminar compra',
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                  onPressed: () => _confirmarEliminarMovimiento(m),
                                 ),
                               ],
                             ),

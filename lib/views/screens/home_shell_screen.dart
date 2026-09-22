@@ -10,6 +10,7 @@ import '../screens/security_screen.dart';
 import '../screens/clients_screen.dart';
 import '../screens/providers_screen.dart';
 import '../screens/credit_cards_screen.dart';
+import '../screens/debts_screen.dart';
 
 /// ============================================================================
 /// [VISTA / SHELL] HomeShellScreen
@@ -100,6 +101,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         onOpenClients: () => _navigateTo(4),
         onOpenProviders: () => _navigateTo(5),
         onOpenCreditCards: () => _navigateTo(6),
+        onOpenDebts: () => _navigateTo(7),
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
       ServicesScreen(
@@ -126,6 +128,11 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         streamingController: widget.streamingController,
         onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
       ),
+      // Index 7: Deudas & Préstamos
+      DebtsScreen(
+        streamingController: widget.streamingController,
+        onOpenDrawer: () => _scaffoldKey.currentState?.openDrawer(),
+      ),
     ];
 
     return Scaffold(
@@ -147,6 +154,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
       _DrawerItem(4, Icons.people_rounded, 'Clientes'),
       _DrawerItem(5, Icons.storefront_rounded, 'Proveedores & Soporte'),
       _DrawerItem(6, Icons.credit_card_rounded, 'Tarjetas de Crédito'),
+      _DrawerItem(7, Icons.request_quote_rounded, 'Deudas & Préstamos'),
       _DrawerItem(2, Icons.two_wheeler_rounded, 'Control Moto & Aceite'),
       _DrawerItem(3, Icons.shield_rounded, 'Seguridad & Face ID'),
     ];
