@@ -36,6 +36,16 @@ class SmartParsedResult {
 }
 
 class SmartParserService {
+  static String _normalizarTexto(String s) {
+    return s.toLowerCase()
+        .replaceAll('3', 'e')
+        .replaceAll('1', 'i')
+        .replaceAll('0', 'o')
+        .replaceAll('4', 'a')
+        .replaceAll('5', 's')
+        .replaceAll('@', 'a');
+  }
+
   /// Analiza un texto arbitrario y extrae los campos de la cuenta
   static SmartParsedResult parse(String text) {
     if (text.trim().isEmpty) {
@@ -50,80 +60,188 @@ class SmartParserService {
     String? proveedor;
     DateTime? fechaVencimiento;
 
-    // 1. Detectar Correo Electrónico
     final emailRegex = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
-    final emailMatch = emailRegex.firstMatch(text);
-    if (emailMatch != null) {
-      correo = emailMatch.group(0)?.trim();
+    final emailLabeledRegex = RegExp(
+      r'(?:correo|email|cuenta|user|usuario)\s*[:=]\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',
+      caseSensitive: false,
+    );
+
+    // 0. Detectar si el texto contiene un reemplazo o garantía (cuenta dañada reemplazada por nueva)
+    // Si es así, priorizamos el bloque de texto que viene a partir de la indicación de reemplazo.
+    String textToParse = text;
+    final lowerTotal = text.toLowerCase();
+    final indicators = [
+      'reemplazo',
+      'garantí',
+      'garanti',
+      'cambio por',
+      'nueva cuenta',
+      'nuevo correo',
+      'actualización de cuenta',
+      'actualizacion de cuenta',
+    ];
+    int bestSplitIdx = -1;
+    for (final ind in indicators) {
+      final idx = lowerTotal.lastIndexOf(ind);
+      if (idx > bestSplitIdx) {
+        bestSplitIdx = idx;
+      }
+    }
+
+    if (bestSplitIdx != -1) {
+      final sub = text.substring(bestSplitIdx);
+      if (emailRegex.hasMatch(sub) ||
+          emailLabeledRegex.hasMatch(sub) ||
+          RegExp(r'(?:clave|password|pass)\s*[:=]', caseSensitive: false).hasMatch(sub)) {
+        textToParse = sub;
+      }
+    }
+
+    // 1. Detectar Correo Electrónico
+    // Prioridad 1: Etiqueta explícita en textToParse (CORREO:, EMAIL:, CUENTA:)
+    final labeledMatches = emailLabeledRegex.allMatches(textToParse).toList();
+    if (labeledMatches.isNotEmpty) {
+      correo = labeledMatches.last.group(1)?.trim();
+    } else {
+      // Prioridad 2: Etiqueta explícita en el texto general
+      final labeledMatchesOrig = emailLabeledRegex.allMatches(text).toList();
+      if (labeledMatchesOrig.isNotEmpty) {
+        correo = labeledMatchesOrig.last.group(1)?.trim();
+      } else {
+        // Prioridad 3: Correo dentro de textToParse (el último si hay varios)
+        final emailsInSub = emailRegex.allMatches(textToParse).toList();
+        if (emailsInSub.isNotEmpty) {
+          correo = emailsInSub.last.group(0)?.trim();
+        } else {
+          // Prioridad 4: Último correo en el texto completo
+          final allEmails = emailRegex.allMatches(text).toList();
+          if (allEmails.isNotEmpty) {
+            correo = allEmails.last.group(0)?.trim();
+          }
+        }
+      }
     }
 
     // Dividir en líneas para análisis por contexto
-    final lines = text.split(RegExp(r'[\r\n]+'));
+    // Usamos textToParse primero; si falta algún campo, complementamos con text
+    final lines = textToParse.split(RegExp(r'[\r\n]+'));
 
     for (var line in lines) {
       final cleanLine = line.trim();
-      final lower = cleanLine.toLowerCase();
 
-      // 2. Detectar Servicio
+      // 2. Detectar Servicio (normalizando leetspeak como N3TFLIX, D1SNEY, etc.)
       if (servicio == null) {
-        if (lower.contains('netflix')) {
+        final norm = _normalizarTexto(cleanLine);
+        if (norm.contains('netflix') || norm.contains('netflx') || norm.contains('neflix')) {
           servicio = 'NETFLIX PA';
-        } else if (lower.contains('prime') || lower.contains('amazon')) {
+        } else if (norm.contains('prime') || norm.contains('amazon')) {
           servicio = 'PRIME VIDEO PA';
-        } else if (lower.contains('disney')) {
+        } else if (norm.contains('disney')) {
           servicio = 'DISNEY+ PA';
-        } else if (lower.contains('max') || lower.contains('hbo')) {
+        } else if (norm.contains('max') || norm.contains('hbo')) {
           servicio = 'MAX PA';
-        } else if (lower.contains('spotify')) {
+        } else if (norm.contains('spotify')) {
           servicio = 'SPOTIFY FAMILIAR';
-        } else if (lower.contains('crunchyroll')) {
+        } else if (norm.contains('crunchyroll') || norm.contains('crunchy')) {
           servicio = 'CRUNCHYROLL';
         }
       }
 
       // 3. Detectar Contraseña / Clave
-      // PRIMERA PASADA: solo líneas con separador EXPLÍCITO (clave: valor, clave= valor)
-      // Esto evita capturar "actualización de clave🍿" donde clave aparece sin separador
-      if (clave == null) {
-        final claveConSeparadorRegex = RegExp(
-          r'(?:clave|password|pass|contrase[ñn]a|pwd)\s*[:=]\s*([^\s,;]+)',
-          caseSensitive: false,
-        );
-        final claveMatch = claveConSeparadorRegex.firstMatch(cleanLine);
-        if (claveMatch != null) {
-          final candidata = claveMatch.group(1)?.trim() ?? '';
-          // Validar que no sea solo emojis o símbolo raro (longitud mínima razonable)
-          if (candidata.isNotEmpty && candidata.length >= 4) {
-            clave = candidata;
-          }
+      // Solo líneas con separador EXPLÍCITO (clave: valor, clave= valor)
+      // Esto evita capturar "actualización de clave🍿"
+      final claveConSeparadorRegex = RegExp(
+        r'(?:clave|password|pass|contrase[ñn]a|pwd)\s*[:=]\s*([^\s,;]+)',
+        caseSensitive: false,
+      );
+      final claveMatch = claveConSeparadorRegex.firstMatch(cleanLine);
+      if (claveMatch != null) {
+        final candidata = claveMatch.group(1)?.trim() ?? '';
+        if (candidata.isNotEmpty && candidata.length >= 3) {
+          clave = candidata;
         }
       }
 
       // 4. Detectar Perfil
-      if (perfil == null) {
-        final perfilRegex = RegExp(
-          r'(?:perfil|pantalla|screen|profile)\s*[:=\-]?\s*([0-9a-zA-Z]+)',
-          caseSensitive: false,
-        );
-        final perfilMatch = perfilRegex.firstMatch(cleanLine);
-        if (perfilMatch != null) {
-          perfil = perfilMatch.group(1)?.trim();
-        }
+      final perfilRegex = RegExp(
+        r'(?:perfil|pantalla|screen|profile)\s*[:=\-]?\s*([0-9a-zA-Z]+)',
+        caseSensitive: false,
+      );
+      final perfilMatch = perfilRegex.firstMatch(cleanLine);
+      if (perfilMatch != null) {
+        perfil = perfilMatch.group(1)?.trim();
       }
 
       // 5. Detectar PIN
-      if (pin == null) {
-        final pinRegex = RegExp(
-          r'(?:pin|c[oó]digo|bloqueo)\s*[:=\-]?\s*([0-9]{3,6})',
-          caseSensitive: false,
-        );
-        final pinMatch = pinRegex.firstMatch(cleanLine);
-        if (pinMatch != null) {
-          pin = pinMatch.group(1)?.trim();
+      final pinRegex = RegExp(
+        r'(?:pin|c[oó]digo|bloqueo)\s*[:=\-]?\s*([0-9]{3,6})',
+        caseSensitive: false,
+      );
+      final pinMatch = pinRegex.firstMatch(cleanLine);
+      if (pinMatch != null) {
+        pin = pinMatch.group(1)?.trim();
+      }
+    }
+
+    // Si algún dato faltó en textToParse, buscar en las líneas del texto completo
+    if (servicio == null || clave == null || perfil == null || pin == null) {
+      final origLines = text.split(RegExp(r'[\r\n]+'));
+      for (var line in origLines) {
+        final cleanLine = line.trim();
+
+        if (servicio == null) {
+          final norm = _normalizarTexto(cleanLine);
+          if (norm.contains('netflix') || norm.contains('netflx') || norm.contains('neflix')) {
+            servicio = 'NETFLIX PA';
+          } else if (norm.contains('prime') || norm.contains('amazon')) {
+            servicio = 'PRIME VIDEO PA';
+          } else if (norm.contains('disney')) {
+            servicio = 'DISNEY+ PA';
+          } else if (norm.contains('max') || norm.contains('hbo')) {
+            servicio = 'MAX PA';
+          } else if (norm.contains('spotify')) {
+            servicio = 'SPOTIFY FAMILIAR';
+          } else if (norm.contains('crunchyroll') || norm.contains('crunchy')) {
+            servicio = 'CRUNCHYROLL';
+          }
+        }
+
+        if (clave == null) {
+          final claveConSeparadorRegex = RegExp(
+            r'(?:clave|password|pass|contrase[ñn]a|pwd)\s*[:=]\s*([^\s,;]+)',
+            caseSensitive: false,
+          );
+          final claveMatch = claveConSeparadorRegex.firstMatch(cleanLine);
+          if (claveMatch != null) {
+            final candidata = claveMatch.group(1)?.trim() ?? '';
+            if (candidata.isNotEmpty && candidata.length >= 3) {
+              clave = candidata;
+            }
+          }
+        }
+
+        if (perfil == null) {
+          final perfilRegex = RegExp(
+            r'(?:perfil|pantalla|screen|profile)\s*[:=\-]?\s*([0-9a-zA-Z]+)',
+            caseSensitive: false,
+          );
+          final perfilMatch = perfilRegex.firstMatch(cleanLine);
+          if (perfilMatch != null) {
+            perfil = perfilMatch.group(1)?.trim();
+          }
+        }
+
+        if (pin == null) {
+          final pinRegex = RegExp(
+            r'(?:pin|c[oó]digo|bloqueo)\s*[:=\-]?\s*([0-9]{3,6})',
+            caseSensitive: false,
+          );
+          final pinMatch = pinRegex.firstMatch(cleanLine);
+          if (pinMatch != null) {
+            pin = pinMatch.group(1)?.trim();
+          }
         }
       }
-
-      // El proveedor se mantiene 100% manual por el usuario y nunca se sobreescribe
     }
 
     // Si la clave no se encontró con prefijo pero hay formato "correo:clave" o "correo / clave"

@@ -613,30 +613,24 @@ class _QuickChip extends StatelessWidget {
                 ),
                 child: Icon(
                   icon,
-                  color: isComingSoon
-                      ? const Color(0xFF444455)
-                      : const Color(0xFFE2E2E8),
+                  color: const Color(0xFFE2E2E8),
                   size: 16,
                 ),
               ),
               const SizedBox(height: 9),
               Text(
                 label,
-                style: TextStyle(
-                  color: isComingSoon
-                      ? const Color(0xFF555566)
-                      : Colors.white,
+                style: const TextStyle(
+                  color: Colors.white,
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(height: 2),
               Text(
-                isComingSoon ? 'Próximamente' : sublabel,
-                style: TextStyle(
-                  color: isComingSoon
-                      ? const Color(0xFF3B3B48)
-                      : const Color(0xFF7E7E8F),
+                sublabel,
+                style: const TextStyle(
+                  color: Color(0xFF7E7E8F),
                   fontSize: 10,
                 ),
                 overflow: TextOverflow.ellipsis,
