@@ -3,6 +3,9 @@ import 'package:local_auth/local_auth.dart';
 import '../../controllers/streaming_controller.dart';
 import '../../models/app_settings.dart';
 import '../../models/client_model.dart';
+import '../../models/provider_model.dart';
+import '../../models/credit_card_model.dart';
+import '../../models/debt_model.dart';
 import '../../services/cloud_sync_service.dart';
 import '../theme/app_theme.dart';
 import 'lock_screen.dart';
@@ -83,13 +86,19 @@ class _SecurityScreenState extends State<SecurityScreen> {
   Future<void> _sincronizarAhora() async {
     setState(() => _syncingNow = true);
     final clientes = await ClientsService.getAll();
+    final proveedores = await ProvidersService.getAll();
+    final tarjetas = await CreditCardsService.getAll();
+    final deudas = await DebtsService.getAll();
     final ok = await CloudSyncService.syncToCloud(
       accounts: widget.streamingController?.accounts ?? [],
       clients: clientes,
+      providers: proveedores,
+      creditCards: tarjetas,
+      debts: deudas,
     );
     setState(() => _syncingNow = false);
     _snack(
-      ok ? '✅ Respaldo exitoso en MongoDB Atlas' : '❌ Error al sincronizar. Revisa tu conexión.',
+      ok ? '✅ Respaldo completo en MongoDB Atlas (Pantallas, Tarjetas, Deudas)' : '❌ Error al sincronizar. Revisa tu conexión.',
       ok ? const Color(0xFF00ED64) : AppTheme.netflixRed,
     );
   }
@@ -395,7 +404,7 @@ class _SecurityScreenState extends State<SecurityScreen> {
                 ),
                 const SizedBox(height: 6),
                 const Text(
-                  'Conecta tu cluster de Atlas o Compass para auto-guardar tus ventas y clientes en tiempo real y al salir de la app.',
+                  'Conecta tu cluster de Atlas o Compass para auto-guardar tus pantallas, clientes, proveedores, tarjetas y deudas en tiempo real y al salir de la app.',
                   style: TextStyle(color: Color(0xFF888899), fontSize: 12),
                 ),
                 const SizedBox(height: 18),
@@ -821,10 +830,10 @@ class _SecurityScreenState extends State<SecurityScreen> {
                           const SizedBox(height: 10),
 
                           _infoCard(
-                            icon: Icons.backup_rounded,
+                            icon: Icons.cloud_done_rounded,
                             color: AppTheme.successGreen,
-                            title: 'Copia de seguridad',
-                            subtitle: 'Tus datos se guardan localmente en tu dispositivo',
+                            title: 'Copia de seguridad en la nube',
+                            subtitle: 'Pantallas, clientes, proveedores, tarjetas y deudas respaldados',
                           ),
 
                           const SizedBox(height: 10),
@@ -897,6 +906,18 @@ class _SecurityScreenState extends State<SecurityScreen> {
                                   ],
                                 ),
                                 if (_mongoConfigured) ...[
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: [
+                                      _syncBadge('Pantallas'),
+                                      _syncBadge('Clientes'),
+                                      _syncBadge('Proveedores'),
+                                      _syncBadge('Tarjetas'),
+                                      _syncBadge('Deudas'),
+                                    ],
+                                  ),
                                   const SizedBox(height: 14),
                                   const Divider(color: Color(0xFF242430), height: 1),
                                   const SizedBox(height: 12),
@@ -990,6 +1011,23 @@ class _SecurityScreenState extends State<SecurityScreen> {
       ),
     );
   }
+
+  Widget _syncBadge(String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+    decoration: BoxDecoration(
+      color: const Color(0xFF00ED64).withOpacity(0.08),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: const Color(0xFF00ED64).withOpacity(0.25), width: 0.8),
+    ),
+    child: Text(
+      label,
+      style: const TextStyle(
+        color: Color(0xFF00ED64),
+        fontSize: 10,
+        fontWeight: FontWeight.bold,
+      ),
+    ),
+  );
 
   Widget _sectionLabel(String text) => Text(
     text,

@@ -386,6 +386,93 @@ class CloudSyncService {
         );
       }
 
+      // Subir Proveedores (Data API Fallback)
+      if (listaProveedores.isNotEmpty) {
+        await http.post(
+          Uri.parse('$endpoint/action/deleteMany'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'proveedores',
+            'filter': {},
+          }),
+        );
+        final docsProveedores = listaProveedores.map((p) => {
+          ...p.toMap(),
+          '_id': p.id,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }).toList();
+        await http.post(
+          Uri.parse('$endpoint/action/insertMany'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'proveedores',
+            'documents': docsProveedores,
+          }),
+        );
+      }
+
+      // Subir Tarjetas de Crédito (Data API Fallback)
+      if (listaTarjetas.isNotEmpty) {
+        await http.post(
+          Uri.parse('$endpoint/action/deleteMany'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'tarjetas_credito',
+            'filter': {},
+          }),
+        );
+        final docsTarjetas = listaTarjetas.map((c) => {
+          ...c.toMap(),
+          '_id': c.id,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }).toList();
+        await http.post(
+          Uri.parse('$endpoint/action/insertMany'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'tarjetas_credito',
+            'documents': docsTarjetas,
+          }),
+        );
+      }
+
+      // Subir Deudas (Data API Fallback)
+      if (listaDeudas.isNotEmpty) {
+        await http.post(
+          Uri.parse('$endpoint/action/deleteMany'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'deudas',
+            'filter': {},
+          }),
+        );
+        final docsDeudas = listaDeudas.map((d) => {
+          ...d.toMap(),
+          '_id': d.id,
+          'updatedAt': DateTime.now().toIso8601String(),
+        }).toList();
+        await http.post(
+          Uri.parse('$endpoint/action/insertMany'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'deudas',
+            'documents': docsDeudas,
+          }),
+        );
+      }
+
       final now = DateTime.now();
       final p = await SharedPreferences.getInstance();
       await p.setString(_kLastSync, now.toIso8601String());
@@ -542,6 +629,82 @@ class CloudSyncService {
         if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
         return ClientModel.fromMap(map);
       }).toList();
+
+      // Fallback Data API proveedores, tarjetas, deudas
+      try {
+        final respProv = await http.post(
+          Uri.parse('$endpoint/action/find'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'proveedores',
+            'filter': {},
+          }),
+        );
+        if (respProv.statusCode == 200) {
+          final dataProv = jsonDecode(respProv.body);
+          final List docsProv = dataProv['documents'] ?? [];
+          if (docsProv.isNotEmpty) {
+            final provs = docsProv.map((d) {
+              final map = Map<String, dynamic>.from(d);
+              if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
+              return ProviderModel.fromMap(map);
+            }).toList();
+            await ProvidersService.save(provs);
+          }
+        }
+      } catch (_) {}
+
+      try {
+        final respCards = await http.post(
+          Uri.parse('$endpoint/action/find'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'tarjetas_credito',
+            'filter': {},
+          }),
+        );
+        if (respCards.statusCode == 200) {
+          final dataCards = jsonDecode(respCards.body);
+          final List docsCards = dataCards['documents'] ?? [];
+          if (docsCards.isNotEmpty) {
+            final cards = docsCards.map((d) {
+              final map = Map<String, dynamic>.from(d);
+              if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
+              return CreditCardModel.fromMap(map);
+            }).toList();
+            await CreditCardsService.save(cards);
+          }
+        }
+      } catch (_) {}
+
+      try {
+        final respDebts = await http.post(
+          Uri.parse('$endpoint/action/find'),
+          headers: headers,
+          body: jsonEncode({
+            'dataSource': cluster,
+            'database': database,
+            'collection': 'deudas',
+            'filter': {},
+          }),
+        );
+        if (respDebts.statusCode == 200) {
+          final dataDebts = jsonDecode(respDebts.body);
+          final List docsDebts = dataDebts['documents'] ?? [];
+          if (docsDebts.isNotEmpty) {
+            final debts = docsDebts.map((d) {
+              final map = Map<String, dynamic>.from(d);
+              if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
+              return DebtModel.fromMap(map);
+            }).toList();
+            await DebtsService.save(debts);
+          }
+        }
+      } catch (_) {}
 
       await ClientsService.save(clientes);
       await StorageService.saveAccounts(cuentas);
