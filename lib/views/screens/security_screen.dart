@@ -89,8 +89,23 @@ class _SecurityScreenState extends State<SecurityScreen> {
     final proveedores = await ProvidersService.getAll();
     final tarjetas = await CreditCardsService.getAll();
     final deudas = await DebtsService.getAll();
+    final cuentas = widget.streamingController?.accounts ?? [];
+
+    // Si el dispositivo no tiene ningún dato (nuevo teléfono, navegador limpio, etc.),
+    // traer automáticamente de la nube en vez de fallar por estar vacío:
+    final hayDatosLocales = cuentas.isNotEmpty ||
+        clientes.isNotEmpty ||
+        proveedores.isNotEmpty ||
+        tarjetas.isNotEmpty ||
+        deudas.isNotEmpty;
+
+    if (!hayDatosLocales) {
+      await _descargarDeLaNube(mostrarSnack: true);
+      return;
+    }
+
     final ok = await CloudSyncService.syncToCloud(
-      accounts: widget.streamingController?.accounts ?? [],
+      accounts: cuentas,
       clients: clientes,
       providers: proveedores,
       creditCards: tarjetas,
@@ -101,6 +116,32 @@ class _SecurityScreenState extends State<SecurityScreen> {
       ok ? '✅ Respaldo completo en MongoDB Atlas (Pantallas, Tarjetas, Deudas)' : '❌ Error al sincronizar. Revisa tu conexión.',
       ok ? const Color(0xFF00ED64) : AppTheme.netflixRed,
     );
+  }
+
+  Future<void> _descargarDeLaNube({bool mostrarSnack = true}) async {
+    setState(() => _syncingNow = true);
+    final res = await CloudSyncService.downloadFromCloud();
+    if (widget.streamingController != null) {
+      await widget.streamingController!.init();
+    }
+    setState(() => _syncingNow = false);
+    if (!mostrarSnack) return;
+
+    if (res != null) {
+      final cntCuentas = (res['cuentas'] as List?)?.length ?? 0;
+      final cntClientes = (res['clientes'] as List?)?.length ?? 0;
+      final cntTarjetas = (res['tarjetas'] as List?)?.length ?? 0;
+      final cntDeudas = (res['deudas'] as List?)?.length ?? 0;
+      _snack(
+        '📥 ¡Datos traídos de la nube!\n$cntCuentas pantallas, $cntClientes clientes, $cntTarjetas tarjetas, $cntDeudas deudas',
+        const Color(0xFF00ED64),
+      );
+    } else {
+      _snack(
+        '❌ No se pudo descargar de la nube. Revisa tu conexión a internet.',
+        AppTheme.netflixRed,
+      );
+    }
   }
 
   Future<void> _cargar() async {
@@ -950,24 +991,59 @@ class _SecurityScreenState extends State<SecurityScreen> {
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 10),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 40,
-                                    child: OutlinedButton.icon(
-                                      onPressed: _syncingNow ? null : _sincronizarAhora,
-                                      icon: _syncingNow
-                                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00ED64)))
-                                          : const Icon(Icons.sync_rounded, color: Color(0xFF00ED64), size: 16),
-                                      label: Text(
-                                        _syncingNow ? 'Sincronizando...' : 'Sincronizar ahora con la nube',
-                                        style: const TextStyle(color: Color(0xFF00ED64), fontSize: 12, fontWeight: FontWeight.bold),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    children: [
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 42,
+                                          child: OutlinedButton.icon(
+                                            onPressed: _syncingNow ? null : _sincronizarAhora,
+                                            icon: _syncingNow
+                                                ? const SizedBox(
+                                                    width: 14,
+                                                    height: 14,
+                                                    child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF00ED64)),
+                                                  )
+                                                : const Icon(Icons.cloud_upload_rounded, color: Color(0xFF00ED64), size: 16),
+                                            label: Text(
+                                              _syncingNow ? '...' : 'Subir a la nube',
+                                              style: const TextStyle(
+                                                color: Color(0xFF00ED64),
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(color: Color(0xFF00ED64)),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                      style: OutlinedButton.styleFrom(
-                                        side: const BorderSide(color: Color(0xFF00ED64)),
-                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: SizedBox(
+                                          height: 42,
+                                          child: ElevatedButton.icon(
+                                            onPressed: _syncingNow ? null : () => _descargarDeLaNube(mostrarSnack: true),
+                                            icon: const Icon(Icons.cloud_download_rounded, color: Colors.black, size: 16),
+                                            label: const Text(
+                                              'Traer de la nube',
+                                              style: TextStyle(
+                                                color: Colors.black,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: const Color(0xFF00ED64),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ] else ...[
                                   const SizedBox(height: 12),

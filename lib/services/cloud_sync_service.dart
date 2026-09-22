@@ -279,7 +279,7 @@ class CloudSyncService {
           Uri.parse('$bUrl/sync'),
           headers: {'Content-Type': 'application/json'},
           body: payload,
-        ).timeout(const Duration(seconds: 8));
+        ).timeout(const Duration(seconds: 25));
 
         // Fallback a localBridgeUrl si el cloud falló y estamos en PC
         if (bridgeResp.statusCode != 200 && bUrl != localBridgeUrl) {
@@ -498,7 +498,7 @@ class CloudSyncService {
       // 1. Intentar con Bridge (Cloud o Local)
       try {
         final bUrl = await getBridgeUrl();
-        var bridgeResp = await http.get(Uri.parse('$bUrl/pull')).timeout(const Duration(seconds: 8));
+        var bridgeResp = await http.get(Uri.parse('$bUrl/pull')).timeout(const Duration(seconds: 25));
         if (bridgeResp.statusCode != 200 && bUrl != localBridgeUrl) {
           try {
             bridgeResp = await http.get(Uri.parse('$localBridgeUrl/pull')).timeout(const Duration(seconds: 4));
@@ -522,8 +522,9 @@ class CloudSyncService {
             return ClientModel.fromMap(map);
           }).toList();
 
+          List<ProviderModel> proveedores = [];
           if (docsPR.isNotEmpty) {
-            final proveedores = docsPR.map((d) {
+            proveedores = docsPR.map((d) {
               final map = Map<String, dynamic>.from(d);
               if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
               return ProviderModel.fromMap(map);
@@ -532,9 +533,10 @@ class CloudSyncService {
           }
 
           // Restaurar tarjetas de crédito si existen
+          List<CreditCardModel> tarjetas = [];
           final List docsTC = data['creditCards'] ?? [];
           if (docsTC.isNotEmpty) {
-            final tarjetas = docsTC.map((d) {
+            tarjetas = docsTC.map((d) {
               final map = Map<String, dynamic>.from(d);
               if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
               return CreditCardModel.fromMap(map);
@@ -543,9 +545,10 @@ class CloudSyncService {
           }
 
           // Restaurar deudas si existen
+          List<DebtModel> deudas = [];
           final List docsDebts = data['debts'] ?? [];
           if (docsDebts.isNotEmpty) {
-            final deudas = docsDebts.map((d) {
+            deudas = docsDebts.map((d) {
               final map = Map<String, dynamic>.from(d);
               if (map['id'] == null && map['_id'] != null) map['id'] = map['_id'];
               return DebtModel.fromMap(map);
@@ -566,6 +569,9 @@ class CloudSyncService {
           return {
             'cuentas': cuentas,
             'clientes': clientes,
+            'proveedores': proveedores,
+            'tarjetas': tarjetas,
+            'deudas': deudas,
           };
         }
       } catch (_) {}
