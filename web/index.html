@@ -7,13 +7,13 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="JG COMPANY S.A.S — Gestión de Streaming y Finanzas">
 
-  <!-- Sin caché: siempre la versión más nueva -->
+  <!-- Prevención de caché en HTML para que siempre cargue la última compilación -->
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
 
-  <!-- Viewport móvil optimizado -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <!-- Viewport móvil estándar sin bloqueos de escala artificiales -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
@@ -29,239 +29,17 @@
   <link rel="manifest" href="manifest.json">
 
   <style>
-    * {
-      box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
-      -webkit-touch-callout: none;
+    /* Estilos base mínimos: fondo oscuro para evitar parpadeo blanco */
+    html, body {
       margin: 0;
       padding: 0;
-    }
-
-    html, body {
       width: 100%;
       height: 100%;
       background-color: #0A0A0F;
-      overflow: hidden;
-      cursor: pointer;
-      touch-action: manipulation;
-      -webkit-user-select: none;
-      user-select: none;
-      font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
-    }
-
-    /* Asegura que Flutter reciba toques */
-    flutter-view, flt-glass-pane {
-      cursor: pointer !important;
-      touch-action: manipulation !important;
-    }
-
-    /* ─── SPLASH DE INICIO ─────────────────────────────────────── */
-    #jg-splash {
-      position: fixed;
-      inset: 0;
-      background: #0A0A0F;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      z-index: 999999;
-      cursor: pointer;
-      transition: opacity 0.4s ease, transform 0.4s ease;
-    }
-
-    #jg-splash.hiding {
-      opacity: 0;
-      transform: scale(1.04);
-      pointer-events: none;
-    }
-
-    .jg-logo-ring {
-      width: 88px;
-      height: 88px;
-      border-radius: 22px;
-      background: linear-gradient(135deg, #E50914 0%, #8B0000 100%);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 20px;
-      box-shadow: 0 0 40px rgba(229, 9, 20, 0.45);
-      animation: pulse 2s ease-in-out infinite;
-    }
-
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 30px rgba(229, 9, 20, 0.35); }
-      50% { box-shadow: 0 0 55px rgba(229, 9, 20, 0.65); }
-    }
-
-    .jg-logo-text {
-      font-size: 30px;
-      font-weight: 900;
-      color: #fff;
-      letter-spacing: 1px;
-    }
-
-    .jg-app-name {
-      font-size: 20px;
-      font-weight: 800;
-      color: #fff;
-      letter-spacing: 2.5px;
-      margin-bottom: 6px;
-    }
-
-    .jg-app-sub {
-      font-size: 11px;
-      font-weight: 500;
-      color: #555566;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      margin-bottom: 52px;
-    }
-
-    .jg-tap-btn {
-      background: linear-gradient(135deg, #E50914 0%, #B00710 100%);
-      color: #fff;
-      font-size: 14px;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      padding: 16px 48px;
-      border-radius: 50px;
-      border: none;
-      box-shadow: 0 4px 24px rgba(229, 9, 20, 0.4);
-      cursor: pointer;
-      animation: float 3s ease-in-out infinite;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-5px); }
-    }
-
-    .jg-tap-hint {
-      margin-top: 18px;
-      font-size: 11px;
-      color: #33333F;
-      letter-spacing: 0.5px;
-    }
-
-    /* Spinner de carga de Flutter (debajo del splash) */
-    #jg-loading {
-      position: fixed;
-      bottom: 40px;
-      left: 50%;
-      transform: translateX(-50%);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      z-index: 999998;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-
-    #jg-loading.visible {
-      opacity: 1;
-    }
-
-    .jg-spinner {
-      width: 22px;
-      height: 22px;
-      border: 2px solid rgba(229,9,20,0.15);
-      border-top-color: #E50914;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
-    }
-
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    .jg-loading-text {
-      font-size: 10px;
-      color: #333344;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
     }
   </style>
 </head>
 <body>
-
-  <!-- ── PANTALLA DE INICIO (registra el gesto con WebKit/iOS) ── -->
-  <div id="jg-splash">
-    <div class="jg-logo-ring">
-      <span class="jg-logo-text">JG</span>
-    </div>
-    <div class="jg-app-name">JG COMPANY</div>
-    <div class="jg-app-sub">Sistema Empresarial</div>
-    <button class="jg-tap-btn" id="jg-enter-btn" onclick="activateApp()">
-      ENTRAR
-    </button>
-    <div class="jg-tap-hint">Toca para iniciar</div>
-  </div>
-
-  <!-- ── INDICADOR DE CARGA ── -->
-  <div id="jg-loading">
-    <div class="jg-spinner"></div>
-    <div class="jg-loading-text">Cargando...</div>
-  </div>
-
-  <script>
-    var _splashDismissed = false;
-
-    function activateApp() {
-      if (_splashDismissed) return;
-      _splashDismissed = true;
-
-      var splash = document.getElementById('jg-splash');
-      var loading = document.getElementById('jg-loading');
-
-      // 1. Animar salida del splash
-      splash.classList.add('hiding');
-      loading.classList.add('visible');
-
-      // 2. Remover splash del DOM tras la animación
-      setTimeout(function() {
-        if (splash && splash.parentNode) {
-          splash.parentNode.removeChild(splash);
-        }
-        if (loading && loading.parentNode) {
-          loading.parentNode.removeChild(loading);
-        }
-      }, 450);
-
-      // 3. El gesto ya quedó registrado en WebKit.
-      //    Despachar un toque sintético sobre Flutter para que 
-      //    CanvasKit "despierte" sus gestores internos.
-      setTimeout(function() {
-        var target = document.querySelector('flt-glass-pane') ||
-                     document.querySelector('flutter-view') ||
-                     document.body;
-        var rect = target.getBoundingClientRect();
-        var cx = rect.left + rect.width / 2;
-        var cy = rect.top + rect.height / 2;
-
-        // Usar PointerEvent (más compatible en WebKit)
-        try {
-          target.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, cancelable: true, clientX: cx, clientY: cy, pointerId: 1, pointerType: 'touch', isPrimary: true }));
-          target.dispatchEvent(new PointerEvent('pointerup',   { bubbles: true, cancelable: true, clientX: cx, clientY: cy, pointerId: 1, pointerType: 'touch', isPrimary: true }));
-          target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, clientX: cx, clientY: cy }));
-        } catch(e) {}
-      }, 100);
-    }
-
-    // Limpiar service workers y caches viejos
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(function(r) {
-        r.forEach(function(reg) { reg.unregister(); });
-      }).catch(function(){});
-    }
-    if ('caches' in window) {
-      caches.keys().then(function(keys) {
-        keys.forEach(function(k) {
-          if (k.indexOf('flutter') !== -1) caches.delete(k);
-        });
-      }).catch(function(){});
-    }
-  </script>
-
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
