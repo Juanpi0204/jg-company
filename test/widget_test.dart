@@ -14,6 +14,7 @@ void main() {
   testWidgets('App smoke test - mounts successfully', (WidgetTester tester) async {
     // Build our app and trigger a frame.
     await tester.pumpWidget(const JGCompanyApp());
+    await tester.pump(const Duration(seconds: 4));
     expect(find.byType(JGCompanyApp), findsOneWidget);
   });
 }
