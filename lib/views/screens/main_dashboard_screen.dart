@@ -386,15 +386,18 @@ class _HeroHeaderState extends State<_HeroHeader> {
                     color: Colors.transparent,
                     child: InkWell(
                       onTap: widget.onOpenDrawer,
-                      borderRadius: BorderRadius.circular(11),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
+                        constraints: const BoxConstraints(minWidth: 46, minHeight: 46),
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.06),
-                          borderRadius: BorderRadius.circular(11),
-                          border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          color: Colors.white.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.white.withOpacity(0.12)),
                         ),
-                        child: const Icon(Icons.menu_rounded, color: Colors.white70, size: 22),
+                        child: const Center(
+                          child: Icon(Icons.menu_rounded, color: Colors.white, size: 24),
+                        ),
                       ),
                     ),
                   ),

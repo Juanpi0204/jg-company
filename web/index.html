@@ -7,7 +7,12 @@
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="JG COMPANY S.A.S — Gestión de Streaming y Finanzas">
 
-  <!-- Viewport móvil optimizado: permite teclado virtual y previene zoom accidental -->
+  <!-- Prevención de caché en iOS/móviles para reflejar cambios de inmediato -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+  <!-- Viewport móvil estándar sin bloqueo de escala -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 
   <!-- iOS meta tags & icons -->
@@ -27,6 +32,7 @@
     * {
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
     }
     html, body {
       margin: 0;
@@ -39,7 +45,12 @@
   </style>
 
   <script>
-    // Limpiar service workers y caches viejos para evitar pantallas blancas en actualizaciones
+    // Autofocus en ventana para Safari iOS
+    window.addEventListener('load', function() {
+      try { window.focus(); } catch(e) {}
+    });
+
+    // Limpiar service workers y caches viejos para evitar pantallas blancas o versiones obsoletas
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistrations().then(function(registrations) {
         for (var i = 0; i < registrations.length; i++) {

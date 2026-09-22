@@ -139,6 +139,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
       key: _scaffoldKey,
       backgroundColor: AppTheme.background,
       drawer: _buildDrawer(),
+      drawerEnableOpenDragGesture: false,
       body: IndexedStack(index: _currentIndex, children: screens),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -339,41 +340,47 @@ class _HomeShellScreenState extends State<HomeShellScreen> with WidgetsBindingOb
         child: SizedBox(
           height: 60,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: List.generate(navItems.length, (i) {
               final item = navItems[i];
               final isSelected = _currentIndex == i;
-              return GestureDetector(
-                onTap: () => _navigateTo(i),
-                behavior: HitTestBehavior.opaque,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppTheme.netflixRed.withOpacity(0.12)
-                        : Colors.transparent,
+              return Expanded(
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () => _navigateTo(i),
                     borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        item.icon,
-                        color: isSelected ? AppTheme.netflixRed : AppTheme.textMuted,
-                        size: 22,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.label,
-                        style: TextStyle(
-                          color: isSelected ? AppTheme.textPrimary : AppTheme.textMuted,
-                          fontSize: 10,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.w500,
+                    child: Center(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: isSelected
+                              ? AppTheme.netflixRed.withOpacity(0.14)
+                              : Colors.transparent,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              item.icon,
+                              color: isSelected ? AppTheme.netflixRed : AppTheme.textMuted,
+                              size: 22,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.label,
+                              style: TextStyle(
+                                color: isSelected ? AppTheme.textPrimary : AppTheme.textMuted,
+                                fontSize: 10,
+                                fontWeight:
+                                    isSelected ? FontWeight.bold : FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                    ],
+                    ),
                   ),
                 ),
               );

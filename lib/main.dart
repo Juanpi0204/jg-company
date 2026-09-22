@@ -58,8 +58,8 @@ class AppRoot extends StatefulWidget {
 
 class _AppRootState extends State<AppRoot> {
   late final StreamingController _streamingController;
-  bool _isUnlocked = kIsWeb;
-  bool _checkingBiometric = !kIsWeb;
+  bool _isUnlocked = true;
+  bool _checkingBiometric = false;
   bool _biometricEnabled = false;
 
   @override
@@ -81,27 +81,19 @@ class _AppRootState extends State<AppRoot> {
   Future<void> _checkBiometric() async {
     try {
       final enabled = await BiometricService.isBiometricEnabled()
-          .timeout(const Duration(milliseconds: 1200), onTimeout: () => false);
-      final available = await BiometricService.isAvailable()
-          .timeout(const Duration(milliseconds: 1200), onTimeout: () => false);
+          .timeout(const Duration(milliseconds: 300), onTimeout: () => false);
+      if (!enabled) return;
 
-      if (mounted) {
+      final available = await BiometricService.isAvailable()
+          .timeout(const Duration(milliseconds: 500), onTimeout: () => false);
+
+      if (mounted && available) {
         setState(() {
-          _biometricEnabled = enabled && available;
-          // Si no hay biometría habilitada, desbloquear directo
-          _isUnlocked = !_biometricEnabled;
-          _checkingBiometric = false;
+          _biometricEnabled = true;
+          _isUnlocked = false;
         });
       }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _biometricEnabled = false;
-          _isUnlocked = true;
-          _checkingBiometric = false;
-        });
-      }
-    }
+    } catch (_) {}
   }
 
   void _onUnlocked() {
