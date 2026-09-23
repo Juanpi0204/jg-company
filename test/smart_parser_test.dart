@@ -78,5 +78,52 @@ CLAVE: pass2026
       expect(result.correo, equals('oficial@mail.com'));
       expect(result.clave, equals('pass2026'));
     });
+
+    test('Caso exacto del usuario con + en el correo y una sola linea', () {
+      const msg = '''Bu3n dí4 ✨❤️
+Tuvimos actualización de clave🍿, te adjunto los datos en dado caso que los requieras🫡
+
+ C.S N3TFLIX🎈  CORREO: camata323+hfj647@zohomail.com CLAVE: Sz3y@1734 perfil 3 pin: 2030''';
+      final result = SmartParserService.parse(msg);
+      expect(result.correo, equals('camata323+hfj647@zohomail.com'));
+      expect(result.clave, equals('Sz3y@1734'));
+      expect(result.perfil, equals('3'));
+      expect(result.pin, equals('2030'));
+      expect(result.servicio, equals('NETFLIX PA'));
+
+      // Test WhatsApp URI behavior: %2B debe codificarse como %252B para que wa.me no lo convierta en espacio
+      final waMsg = '📧 *Correo:* ${result.correo}';
+      final encoded = Uri.encodeComponent(waMsg).replaceAll('%2B', '%252B');
+      final url = Uri.parse('https://wa.me/573001234567?text=$encoded');
+      expect(url.toString(), contains('%252B'));
+
+      // Prueba con espacio alrededor del +
+      final resSpace = SmartParserService.parse('CORREO: camata323 + hfj647@zohomail.com CLAVE: 1234');
+      expect(resSpace.correo, equals('camata323+hfj647@zohomail.com'));
+
+      // Prueba con espacio después del +
+      final resSpaceAfter = SmartParserService.parse('CORREO: camata323+ hfj647@zohomail.com CLAVE: 1234');
+      expect(resSpaceAfter.correo, equals('camata323+hfj647@zohomail.com'));
+
+      // Prueba con espacio antes del +
+      final resSpaceBefore = SmartParserService.parse('CORREO: camata323 +hfj647@zohomail.com CLAVE: 1234');
+      expect(resSpaceBefore.correo, equals('camata323+hfj647@zohomail.com'));
+
+      // Prueba con emoji plus
+      final resEmoji = SmartParserService.parse('CORREO: camata323➕hfj647@zohomail.com CLAVE: 1234');
+      expect(resEmoji.correo, equals('camata323+hfj647@zohomail.com'));
+
+      // Prueba con fullwidth plus
+      final resFullWidth = SmartParserService.parse('CORREO: camata323＋hfj647@zohomail.com CLAVE: 1234');
+      expect(resFullWidth.correo, equals('camata323+hfj647@zohomail.com'));
+
+      // Prueba con caracteres invisibles de WhatsApp (LTR mark \u200E)
+      final resInvisible = SmartParserService.parse('CORREO: camata323\u200E+\u200Ehfj647@zohomail.com CLAVE: 1234');
+      expect(resInvisible.correo, equals('camata323+hfj647@zohomail.com'));
+
+      // Prueba con URL encoded plus %2B
+      final resUrlEncoded = SmartParserService.parse('CORREO: camata323%2Bhfj647@zohomail.com CLAVE: 1234');
+      expect(resUrlEncoded.correo, equals('camata323+hfj647@zohomail.com'));
+    });
   });
 }

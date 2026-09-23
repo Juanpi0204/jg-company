@@ -286,7 +286,10 @@ Ya puedes ingresar con esta nueva clave. ¡Disfruta tu contenido! 🍿🎬
 
   Future<void> _launchWhatsApp(String telefono, String message) async {
     final cleanPhone = telefono.replaceAll(RegExp(r'[^0-9]'), '');
-    final encodedMessage = Uri.encodeComponent(message);
+    // WhatsApp decode fix: wa.me decodifica %2B a '+' en su redirección HTTP,
+    // y luego la app de WhatsApp lo interpreta como un espacio ' '.
+    // Al usar %252B, WhatsApp decodifica a %2B y muestra el signo '+' literal.
+    final encodedMessage = Uri.encodeComponent(message).replaceAll('%2B', '%252B');
 
     String targetPhone = cleanPhone;
     if (targetPhone.length == 10 && targetPhone.startsWith('3')) {

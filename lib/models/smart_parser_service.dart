@@ -60,16 +60,41 @@ class SmartParserService {
     String? proveedor;
     DateTime? fechaVencimiento;
 
-    final emailRegex = RegExp(r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}');
+    // 0. Pre-procesamiento de limpieza:
+    // a. Eliminar caracteres invisibles que insertan WhatsApp y teclados móviles al copiar
+    //    (\u200E LTR mark, \u200F RTL mark, \u200B zero-width space, \uFEFF no-break space)
+    String cleanText = text
+        .replaceAll('\u200E', '')
+        .replaceAll('\u200F', '')
+        .replaceAll('\u200B', '')
+        .replaceAll('\uFEFF', '')
+        .replaceAll('\u00A0', ' ')
+        .replaceAll('➕', '+')
+        .replaceAll('＋', '+')
+        .replaceAll('﹢', '+')
+        .replaceAll(RegExp(r'%2[bB]'), '+');
+
+    // b. Corregir correos con espacios accidentales alrededor del '+' o del '@'
+    //    Ejemplos típicos: "camata323 + hfj647@zohomail.com" -> "camata323+hfj647@zohomail.com"
+    cleanText = cleanText.replaceAllMapped(
+      RegExp(r'([a-zA-Z0-9._%+-]+)\s*\+\s*([a-zA-Z0-9._%+-]+)\s*@\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'),
+      (m) => '${m[1]}+${m[2]}@${m[3]}',
+    );
+    cleanText = cleanText.replaceAllMapped(
+      RegExp(r'([a-zA-Z0-9._%+-]+)\s*@\s*([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})'),
+      (m) => '${m[1]}@${m[2]}',
+    );
+
+    final emailRegex = RegExp(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}');
     final emailLabeledRegex = RegExp(
-      r'(?:correo|email|cuenta|user|usuario)\s*[:=]\s*([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})',
+      r'(?:correo|email|e-mail|mail|cuenta|user|usuario)\s*[:=\-👉▶️➡️📧]?\s*([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})',
       caseSensitive: false,
     );
 
     // 0. Detectar si el texto contiene un reemplazo o garantía (cuenta dañada reemplazada por nueva)
     // Si es así, priorizamos el bloque de texto que viene a partir de la indicación de reemplazo.
-    String textToParse = text;
-    final lowerTotal = text.toLowerCase();
+    String textToParse = cleanText;
+    final lowerTotal = cleanText.toLowerCase();
     final indicators = [
       'reemplazo',
       'garantí',
@@ -89,7 +114,7 @@ class SmartParserService {
     }
 
     if (bestSplitIdx != -1) {
-      final sub = text.substring(bestSplitIdx);
+      final sub = cleanText.substring(bestSplitIdx);
       if (emailRegex.hasMatch(sub) ||
           emailLabeledRegex.hasMatch(sub) ||
           RegExp(r'(?:clave|password|pass)\s*[:=]', caseSensitive: false).hasMatch(sub)) {
@@ -104,7 +129,7 @@ class SmartParserService {
       correo = labeledMatches.last.group(1)?.trim();
     } else {
       // Prioridad 2: Etiqueta explícita en el texto general
-      final labeledMatchesOrig = emailLabeledRegex.allMatches(text).toList();
+      final labeledMatchesOrig = emailLabeledRegex.allMatches(cleanText).toList();
       if (labeledMatchesOrig.isNotEmpty) {
         correo = labeledMatchesOrig.last.group(1)?.trim();
       } else {
@@ -114,7 +139,7 @@ class SmartParserService {
           correo = emailsInSub.last.group(0)?.trim();
         } else {
           // Prioridad 4: Último correo en el texto completo
-          final allEmails = emailRegex.allMatches(text).toList();
+          final allEmails = emailRegex.allMatches(cleanText).toList();
           if (allEmails.isNotEmpty) {
             correo = allEmails.last.group(0)?.trim();
           }
@@ -122,8 +147,19 @@ class SmartParserService {
       }
     }
 
+    // Normalizar correo si fue encontrado
+    if (correo != null) {
+      correo = correo
+          .replaceAll(' ', '')
+          .replaceAll('➕', '+')
+          .replaceAll('＋', '+')
+          .replaceAll('﹢', '+')
+          .replaceAll(RegExp(r'%2[bB]'), '+')
+          .trim();
+    }
+
     // Dividir en líneas para análisis por contexto
-    // Usamos textToParse primero; si falta algún campo, complementamos con text
+    // Usamos textToParse primero; si falta algún campo, complementamos con cleanText
     final lines = textToParse.split(RegExp(r'[\r\n]+'));
 
     for (var line in lines) {
