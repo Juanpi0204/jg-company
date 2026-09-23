@@ -181,7 +181,7 @@ ${detalleExtra.isNotEmpty ? '📝 *Detalle:* $detalleExtra\n' : ''}━━━━�
 _Agradecemos su pronta revisión para solucionar al cliente a la brevedad. ¡Muchas gracias!_
 ''';
 
-    final encodedMessage = Uri.encodeComponent(mensaje).replaceAll('%2B', '%252B');
+    final encodedMessage = Uri.encodeComponent(mensaje);
     final uri = Uri.parse('https://wa.me/$phoneFormatted?text=$encodedMessage');
 
     try {

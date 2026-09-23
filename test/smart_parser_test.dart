@@ -91,11 +91,11 @@ Tuvimos actualización de clave🍿, te adjunto los datos en dado caso que los r
       expect(result.pin, equals('2030'));
       expect(result.servicio, equals('NETFLIX PA'));
 
-      // Test WhatsApp URI behavior: %2B debe codificarse como %252B para que wa.me no lo convierta en espacio
+      // Test WhatsApp URI behavior: el correo con + se codifica como %2B para WhatsApp
       final waMsg = '📧 *Correo:* ${result.correo}';
-      final encoded = Uri.encodeComponent(waMsg).replaceAll('%2B', '%252B');
+      final encoded = Uri.encodeComponent(waMsg);
       final url = Uri.parse('https://wa.me/573001234567?text=$encoded');
-      expect(url.toString(), contains('%252B'));
+      expect(url.toString(), contains('camata323%2Bhfj647%40zohomail.com'));
 
       // Prueba con espacio alrededor del +
       final resSpace = SmartParserService.parse('CORREO: camata323 + hfj647@zohomail.com CLAVE: 1234');
